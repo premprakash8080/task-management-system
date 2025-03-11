@@ -803,7 +803,7 @@ const paths = {
               type: 'object',
               required: ['name'],
               properties: {
-                name: {
+                title: {
                   type: 'string',
                   example: 'Task Management System'
                 },
