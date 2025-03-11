@@ -7,6 +7,9 @@ import {
   useColorModeValue,
   Heading,
   Badge,
+  Spinner,
+  Alert,
+  AlertIcon,
 } from '@chakra-ui/react'
 import { useState, useMemo } from 'react'
 import { 
@@ -16,10 +19,11 @@ import {
   AiOutlineCheck,
   AiOutlineProject,
 } from 'react-icons/ai'
-import { Task, Project, sampleData } from '../data/sampleData'
+import { Task } from '../types/task'
 import TaskDetails from '../components/tasks/TaskDetails'
 import TaskListItem from '../components/tasks/list/TaskListItem'
-import { format, isToday, isTomorrow, parseISO, addDays } from 'date-fns'
+import { format, isToday, isTomorrow, parseISO } from 'date-fns'
+import { useTasks } from '../hooks/useTasks'
 
 interface TaskGroup {
   title: string
@@ -33,33 +37,40 @@ export default function Inbox() {
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false)
   const [currentTab, setCurrentTab] = useState<'activity' | 'archived'>('activity')
 
+  // Use our custom hook for task operations
+  const {
+    tasks,
+    isLoading,
+    error,
+    updateTask,
+    isUpdating,
+  } = useTasks({
+    status: currentTab === 'archived' ? ['completed'] : ['todo', 'in_progress'],
+  })
+
   const handleTaskClick = (taskId: string) => {
     setSelectedTaskId(taskId)
     setIsTaskDetailOpen(true)
   }
 
-  const handleTaskUpdate = (updatedTask: Task) => {
-    // Handle task update logic here
-    console.log('Task updated:', updatedTask)
+  const handleTaskUpdate = async (updatedTask: Task) => {
+    try {
+      await updateTask({ taskId: updatedTask.id, updates: updatedTask })
+    } catch (error) {
+      console.error('Failed to update task:', error)
+    }
   }
 
-  // Get project details for a task
-  const getProjectDetails = (projectId: string): Project | undefined => {
-    return sampleData.projects.find(p => p.id === projectId)
-  }
-
-  // Filter and group tasks based on current tab
+  // Group tasks based on current tab
   const groupedTasks = useMemo(() => {
-    const isArchived = currentTab === 'archived'
-    const filteredTasks = sampleData.tasks.filter(task => 
-      isArchived ? task.status === 'completed' : task.status !== 'completed'
-    )
+    if (!tasks) return []
 
     const groups: TaskGroup[] = []
+    const isArchived = currentTab === 'archived'
     
     if (!isArchived) {
       // Your Tasks (no due date)
-      const yourTasks = filteredTasks.filter(task => !task.dueDate)
+      const yourTasks = tasks.filter(task => !task.dueDate)
       if (yourTasks.length > 0) {
         groups.push({ 
           title: 'Your Tasks',
@@ -70,7 +81,7 @@ export default function Inbox() {
       }
 
       // Due Today
-      const todayTasks = filteredTasks.filter(task => 
+      const todayTasks = tasks.filter(task => 
         task.dueDate && isToday(parseISO(task.dueDate))
       )
       if (todayTasks.length > 0) {
@@ -83,7 +94,7 @@ export default function Inbox() {
       }
 
       // Due Tomorrow
-      const tomorrowTasks = filteredTasks.filter(task => 
+      const tomorrowTasks = tasks.filter(task => 
         task.dueDate && isTomorrow(parseISO(task.dueDate))
       )
       if (tomorrowTasks.length > 0) {
@@ -96,7 +107,7 @@ export default function Inbox() {
       }
 
       // Group future tasks by project
-      const futureTasks = filteredTasks.filter(task => {
+      const futureTasks = tasks.filter(task => {
         if (!task.dueDate) return false
         const date = parseISO(task.dueDate)
         return !isToday(date) && !isTomorrow(date)
@@ -105,15 +116,15 @@ export default function Inbox() {
       // Group by project
       const projectGroups = new Map<string, Task[]>()
       futureTasks.forEach(task => {
-        const projectId = task.projectId
-        if (!projectGroups.has(projectId)) {
-          projectGroups.set(projectId, [])
+        if (!task.projectId) return
+        if (!projectGroups.has(task.projectId)) {
+          projectGroups.set(task.projectId, [])
         }
-        projectGroups.get(projectId)?.push(task)
+        projectGroups.get(task.projectId)?.push(task)
       })
 
       projectGroups.forEach((tasks, projectId) => {
-        const project = getProjectDetails(projectId)
+        const project = tasks[0]?.project
         if (project) {
           groups.push({
             title: project.title,
@@ -124,17 +135,36 @@ export default function Inbox() {
         }
       })
     } else {
-      // Group archived tasks by completion date
+      // Group archived tasks
       groups.push({ 
         title: 'Archived Tasks',
         icon: AiOutlineCheck,
-        tasks: filteredTasks,
+        tasks: tasks,
         color: 'gray.500'
       })
     }
 
     return groups
-  }, [currentTab])
+  }, [tasks, currentTab])
+
+  if (isLoading) {
+    return (
+      <Box p={6} textAlign="center">
+        <Spinner size="xl" color="blue.500" />
+      </Box>
+    )
+  }
+
+  if (error) {
+    return (
+      <Box p={6}>
+        <Alert status="error">
+          <AlertIcon />
+          Failed to load tasks. Please try again later.
+        </Alert>
+      </Box>
+    )
+  }
 
   return (
     <Box>
@@ -165,7 +195,13 @@ export default function Inbox() {
                   <TaskListItem
                     key={task.id}
                     task={task}
-                    onComplete={() => handleTaskClick(task.id)}
+                    onTaskClick={() => handleTaskClick(task.id)}
+                    onComplete={async (taskId) => {
+                      await handleTaskUpdate({
+                        ...task,
+                        status: task.status === 'completed' ? 'todo' : 'completed'
+                      })
+                    }}
                   />
                 ))}
               </VStack>
@@ -191,15 +227,17 @@ export default function Inbox() {
         </VStack>
 
         {/* Task Detail Panel */}
-        <TaskDetails
-          isOpen={isTaskDetailOpen}
-          onClose={() => {
-            setIsTaskDetailOpen(false)
-            setSelectedTaskId(null)
-          }}
-          taskId={selectedTaskId || ''}
-          onTaskUpdate={handleTaskUpdate}
-        />
+        {selectedTaskId && (
+          <TaskDetails
+            isOpen={isTaskDetailOpen}
+            onClose={() => {
+              setIsTaskDetailOpen(false)
+              setSelectedTaskId(null)
+            }}
+            taskId={selectedTaskId}
+            onTaskUpdate={handleTaskUpdate}
+          />
+        )}
       </Box>
     </Box>
   )
