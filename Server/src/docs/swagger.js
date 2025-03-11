@@ -583,6 +583,213 @@ const paths = {
       }
     }
   },
+  '/tasks/{taskId}': {
+    get: {
+      summary: 'Get a task by ID',
+      tags: ['Tasks'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'taskId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Task ID'
+        }
+      ],
+      responses: {
+        200: {
+          description: 'Task details',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Task' }
+            }
+          }
+        }
+      }
+    },
+    patch: {
+      summary: 'Update a task',
+      tags: ['Tasks'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'taskId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Task ID'
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                title: {
+                  type: 'string',
+                  example: 'Updated task title'
+                },
+                description: {
+                  type: 'string',
+                  example: 'Updated task description'
+                },
+                status: {
+                  type: 'string',
+                  enum: ['TODO', 'IN_PROGRESS', 'COMPLETED'],
+                  example: 'IN_PROGRESS'
+                },
+                priority: {
+                  type: 'string',
+                  enum: ['LOW', 'MEDIUM', 'HIGH'],
+                  example: 'HIGH'
+                },
+                dueDate: {
+                  type: 'string',
+                  format: 'date-time',
+                  example: '2024-03-25T00:00:00.000Z'
+                },
+                assignedTo: {
+                  type: 'string',
+                  example: '65ee5678abcd1234ef905678'
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        200: {
+          description: 'Task updated successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Task' }
+            }
+          }
+        }
+      }
+    },
+    delete: {
+      summary: 'Delete a task',
+      tags: ['Tasks'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'taskId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Task ID'
+        }
+      ],
+      responses: {
+        200: {
+          description: 'Task deleted successfully'
+        }
+      }
+    }
+  },
+  '/tasks/{taskId}/comments': {
+    post: {
+      summary: 'Add a comment to a task',
+      tags: ['Tasks'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'taskId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Task ID'
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['text'],
+              properties: {
+                text: {
+                  type: 'string',
+                  example: 'Great progress on this task!'
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        200: {
+          description: 'Comment added successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Task' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/tasks/batch-update': {
+    post: {
+      summary: 'Batch update multiple tasks',
+      tags: ['Tasks'],
+      security: [{ bearerAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['tasks'],
+              properties: {
+                tasks: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    required: ['taskId'],
+                    properties: {
+                      taskId: {
+                        type: 'string',
+                        example: '65ee1234abcd5678ef901234'
+                      },
+                      status: {
+                        type: 'string',
+                        enum: ['TODO', 'IN_PROGRESS', 'COMPLETED'],
+                        example: 'IN_PROGRESS'
+                      },
+                      priority: {
+                        type: 'string',
+                        enum: ['LOW', 'MEDIUM', 'HIGH'],
+                        example: 'HIGH'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        200: {
+          description: 'Tasks updated successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/Task' }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
   '/projects': {
     post: {
       summary: 'Create a new project',
@@ -660,6 +867,244 @@ const paths = {
                 type: 'array',
                 items: { $ref: '#/components/schemas/Project' }
               }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/projects/{projectId}': {
+    get: {
+      summary: 'Get a project by ID',
+      tags: ['Projects'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'projectId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Project ID'
+        }
+      ],
+      responses: {
+        200: {
+          description: 'Project details',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Project' }
+            }
+          }
+        }
+      }
+    },
+    patch: {
+      summary: 'Update a project',
+      tags: ['Projects'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'projectId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Project ID'
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string',
+                  example: 'Updated Project Name'
+                },
+                description: {
+                  type: 'string',
+                  example: 'Updated project description'
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        200: {
+          description: 'Project updated successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Project' }
+            }
+          }
+        }
+      }
+    },
+    delete: {
+      summary: 'Delete a project',
+      tags: ['Projects'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'projectId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Project ID'
+        }
+      ],
+      responses: {
+        200: {
+          description: 'Project deleted successfully'
+        }
+      }
+    }
+  },
+  '/projects/{projectId}/members': {
+    post: {
+      summary: 'Add a member to the project',
+      tags: ['Projects'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'projectId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Project ID'
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['userId', 'role'],
+              properties: {
+                userId: {
+                  type: 'string',
+                  example: '65ee5678abcd1234ef905678'
+                },
+                role: {
+                  type: 'string',
+                  enum: ['ADMIN', 'MEMBER'],
+                  example: 'MEMBER'
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        200: {
+          description: 'Member added successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Project' }
+            }
+          }
+        }
+      }
+    },
+    delete: {
+      summary: 'Remove a member from the project',
+      tags: ['Projects'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'projectId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Project ID'
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['userId'],
+              properties: {
+                userId: {
+                  type: 'string',
+                  example: '65ee5678abcd1234ef905678'
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        200: {
+          description: 'Member removed successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Project' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/projects/{projectId}/settings': {
+    patch: {
+      summary: 'Update project settings',
+      tags: ['Projects'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'projectId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Project ID'
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                taskCategories: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  example: ['Backend', 'Frontend', 'DevOps']
+                },
+                defaultAssignee: {
+                  type: 'string',
+                  example: '65ee5678abcd1234ef905678'
+                },
+                notificationSettings: {
+                  type: 'object',
+                  properties: {
+                    emailNotifications: {
+                      type: 'boolean',
+                      example: true
+                    },
+                    pushNotifications: {
+                      type: 'boolean',
+                      example: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        200: {
+          description: 'Project settings updated successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Project' }
             }
           }
         }
