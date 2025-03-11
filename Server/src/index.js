@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 import connectDB from "./db/index.js";
 import {app} from './app.js'
 import { initializeSocket } from './services/socket.service.js';
-const http = require('http');
+import http from 'http';
 
 dotenv.config({
     path: './.env'

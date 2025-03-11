@@ -1,8 +1,8 @@
-const Project = require('../models/project.model');
-const Task = require('../models/task.model');
-const { ApiError } = require('../utils/ApiError');
-const { ApiResponse } = require('../utils/ApiResponse');
-const asyncHandler = require('../utils/asyncHandler');
+import { Project } from '../models/project.model.js';
+import { Task } from '../models/task.model.js';
+import { ApiError } from '../utils/ApiError.js';
+import { ApiResponse } from '../utils/ApiResponse.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 const createProject = asyncHandler(async (req, res) => {
   const projectData = req.body;
@@ -230,7 +230,7 @@ const updateProjectSettings = asyncHandler(async (req, res) => {
   );
 });
 
-module.exports = {
+export {
   createProject,
   updateProject,
   deleteProject,

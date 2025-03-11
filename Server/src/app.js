@@ -1,13 +1,19 @@
-const express = require('express');
-const cors = require('cors');
-const cookieParser = require('cookie-parser');
-const helmet = require('helmet');
-const mongoSanitize = require('express-mongo-sanitize');
-const xss = require('xss-clean');
-const compression = require('compression');
-const swaggerUi = require('swagger-ui-express');
-const { apiLimiter } = require('./middlewares/rateLimiter.middleware');
-const swaggerSpec = require('./docs/swagger');
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import mongoSanitize from 'express-mongo-sanitize';
+import xss from 'xss-clean';
+import compression from 'compression';
+import swaggerUi from 'swagger-ui-express';
+import { apiLimiter } from './middlewares/rateLimiter.middleware.js';
+import swaggerSpec from './docs/swagger.js';
+
+// Import routes
+import { router as taskRoutes } from './routes/task.routes.js';
+import { router as projectRoutes } from './routes/project.routes.js';
+import { router as userRoutes } from './routes/user.routes.js';
+import { router as healthcheckRoutes } from './routes/healthcheck.routes.js';
 
 const app = express();
 
@@ -34,12 +40,6 @@ app.use('/api/', apiLimiter);
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Import routes
-const taskRoutes = require('./routes/task.routes');
-const projectRoutes = require('./routes/project.routes');
-const userRoutes = require('./routes/user.routes');
-const healthcheckRoutes = require('./routes/healthcheck.routes');
-
 // Routes
 app.use('/api/v1/healthcheck', healthcheckRoutes);
 app.use('/api/v1/users', userRoutes);
@@ -56,4 +56,4 @@ app.use((err, req, res, next) => {
   });
 });
 
-module.exports = app;
+export { app };

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const taskSchema = new mongoose.Schema(
   {
@@ -31,6 +31,7 @@ const taskSchema = new mongoose.Schema(
     assigneeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
+      required: true,
     },
     tags: [{
       type: String,
@@ -72,4 +73,4 @@ taskSchema.index({ assigneeId: 1, status: 1 });
 taskSchema.index({ dueDate: 1 });
 taskSchema.index({ isArchived: 1 });
 
-module.exports = mongoose.model('Task', taskSchema); 
+export const Task = mongoose.model('Task', taskSchema); 

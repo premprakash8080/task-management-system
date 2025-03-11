@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const projectSchema = new mongoose.Schema(
   {
@@ -13,10 +13,11 @@ const projectSchema = new mongoose.Schema(
     },
     color: {
       type: String,
-      default: 'gray.500',
+      default: '#4A90E2',
     },
     icon: {
       type: String,
+      default: '📁',
     },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -27,6 +28,7 @@ const projectSchema = new mongoose.Schema(
       userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
+        required: true,
       },
       role: {
         type: String,
@@ -47,12 +49,21 @@ const projectSchema = new mongoose.Schema(
       defaultView: {
         type: String,
         enum: ['list', 'board', 'calendar', 'files'],
-        default: 'list',
+        default: 'board',
       },
       taskStatuses: [{
-        name: String,
-        color: String,
-        order: Number,
+        name: {
+          type: String,
+          required: true,
+        },
+        color: {
+          type: String,
+          required: true,
+        },
+        order: {
+          type: Number,
+          required: true,
+        },
       }],
     },
   },
@@ -66,4 +77,4 @@ projectSchema.index({ ownerId: 1 });
 projectSchema.index({ 'members.userId': 1 });
 projectSchema.index({ status: 1 });
 
-module.exports = mongoose.model('Project', projectSchema); 
+export const Project = mongoose.model('Project', projectSchema); 

@@ -1,5 +1,5 @@
-const Joi = require('joi');
-const { objectId } = require('./custom.validation');
+import Joi from 'joi';
+import { objectId } from './custom.validation.js';
 
 const createProject = {
   body: Joi.object().keys({
@@ -94,7 +94,7 @@ const updateProjectSettings = {
   }),
 };
 
-module.exports = {
+export {
   createProject,
   updateProject,
   deleteProject,

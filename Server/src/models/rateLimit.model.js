@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const rateLimitSchema = new mongoose.Schema({
   key: {
@@ -17,4 +17,4 @@ const rateLimitSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
-module.exports = mongoose.model('RateLimit', rateLimitSchema); 
+export const RateLimit = mongoose.model('RateLimit', rateLimitSchema); 

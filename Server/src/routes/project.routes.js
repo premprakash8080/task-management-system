@@ -1,7 +1,6 @@
-const express = require('express');
-const router = express.Router();
-const { auth } = require('../middlewares/auth.middleware');
-const {
+import express from 'express';
+import { verifyJWT } from '../middlewares/auth.middleware.js';
+import {
   createProject,
   updateProject,
   deleteProject,
@@ -10,10 +9,12 @@ const {
   addMember,
   removeMember,
   updateProjectSettings,
-} = require('../controllers/project.controller');
+} from '../controllers/project.controller.js';
+
+const router = express.Router();
 
 // Apply auth middleware to all routes
-router.use(auth);
+router.use(verifyJWT);
 
 // Project CRUD operations
 router.post('/', createProject);
@@ -29,4 +30,4 @@ router.delete('/:projectId/members', removeMember);
 // Project settings
 router.patch('/:projectId/settings', updateProjectSettings);
 
-module.exports = router; 
+export { router }; 

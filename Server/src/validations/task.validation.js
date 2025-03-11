@@ -1,5 +1,5 @@
-const Joi = require('joi');
-const { objectId } = require('./custom.validation');
+import Joi from 'joi';
+import { objectId } from './custom.validation.js';
 
 const createTask = {
   body: Joi.object().keys({
@@ -97,7 +97,7 @@ const batchUpdateTasks = {
   }),
 };
 
-module.exports = {
+export {
   createTask,
   updateTask,
   deleteTask,

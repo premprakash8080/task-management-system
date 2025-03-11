@@ -1,7 +1,7 @@
-const Task = require('../models/task.model');
-const { ApiError } = require('../utils/ApiError');
-const { ApiResponse } = require('../utils/ApiResponse');
-const asyncHandler = require('../utils/asyncHandler');
+import { Task } from '../models/task.model.js';
+import { ApiError } from '../utils/ApiError.js';
+import { ApiResponse } from '../utils/ApiResponse.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 const createTask = asyncHandler(async (req, res) => {
   const taskData = req.body;
@@ -180,7 +180,7 @@ const batchUpdateTasks = asyncHandler(async (req, res) => {
   );
 });
 
-module.exports = {
+export {
   createTask,
   updateTask,
   deleteTask,

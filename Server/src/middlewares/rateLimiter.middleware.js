@@ -1,5 +1,5 @@
-const RateLimit = require('../models/rateLimit.model');
-const { ApiError } = require('../utils/ApiError');
+import { RateLimit } from '../models/rateLimit.model.js';
+import { ApiError } from '../utils/ApiError.js';
 
 const createRateLimiter = (options = {}) => {
   const windowMs = options.windowMs || 15 * 60 * 1000; // 15 minutes by default
@@ -62,7 +62,7 @@ const apiLimiter = createRateLimiter({
   max: 100, // 100 requests per 15 minutes for API routes
 });
 
-module.exports = {
+export {
   authLimiter,
   apiLimiter,
 }; 

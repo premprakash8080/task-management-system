@@ -1,5 +1,6 @@
-const Joi = require('joi');
-const { ApiError } = require('../utils/ApiError');
+import Joi from 'joi';
+import { ApiError } from '../utils/ApiError.js';
+import { pick } from '../utils/pick.js';
 
 const validate = (schema) => (req, res, next) => {
   const validSchema = pick(schema, ['params', 'query', 'body']);
@@ -19,13 +20,4 @@ const validate = (schema) => (req, res, next) => {
   return next();
 };
 
-const pick = (object, keys) => {
-  return keys.reduce((obj, key) => {
-    if (object && Object.prototype.hasOwnProperty.call(object, key)) {
-      obj[key] = object[key];
-    }
-    return obj;
-  }, {});
-};
-
-module.exports = validate; 
+export { validate }; 

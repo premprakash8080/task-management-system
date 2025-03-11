@@ -1,5 +1,5 @@
-const { Server } = require('socket.io');
-const jwt = require('jsonwebtoken');
+import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 
 let io;
 const connectedUsers = new Map(); // Store user connections in memory
@@ -133,7 +133,7 @@ const getUserProjects = (userId) => {
   return Array.from(projectSubscriptions.get(userId.toString()) || []);
 };
 
-module.exports = {
+export {
   initializeSocket,
   emitProjectUpdate,
   emitTaskUpdate,
