@@ -6,11 +6,24 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 const createTask = asyncHandler(async (req, res) => {
   const taskData = req.body;
   
+  // Get the highest order in the section
+  const highestOrderTask = await Task.findOne({
+    projectId: taskData.projectId,
+    sectionId: taskData.sectionId || null
+  }).sort('-order');
+
+  // Set the order to be one more than the highest, or 0 if no tasks exist
+  const order = highestOrderTask ? highestOrderTask.order + 1 : 0;
+
+  // Create the task with the calculated order and current user as assignee if not specified
   const task = await Task.create({
     ...taskData,
+    order,
+    sectionId: taskData.sectionId || null, // Ensure null for unassigned tasks
     assigneeId: taskData.assigneeId || req.user._id,
   });
 
+  // Populate the task with project and assignee details
   const populatedTask = await task.populate([
     { path: 'projectId', select: 'title color icon' },
     { path: 'assigneeId', select: 'name email avatar' },
@@ -80,51 +93,60 @@ const getTasks = asyncHandler(async (req, res) => {
     status,
     priority,
     projectId,
-    assigneeId = req.user._id,
     dueDate,
-    isArchived,
+    isArchived = false,
     search,
-    sort = '-updatedAt',
+    sort = '-updatedAt'
   } = req.query;
 
-  const query = {};
+  // Build query for tasks assigned to the logged-in user
+  const query = {
+    assigneeId: req.user._id,
+    isArchived: isArchived === 'true'
+  };
 
-  // Build filter query
+  // Add filters if provided
   if (status) {
-    query.status = { $in: Array.isArray(status) ? status : [status] };
+    query.status = Array.isArray(status) ? { $in: status } : status;
   }
+
   if (priority) {
-    query.priority = { $in: Array.isArray(priority) ? priority : [priority] };
+    query.priority = Array.isArray(priority) ? { $in: priority } : priority;
   }
+
   if (projectId) {
     query.projectId = projectId;
   }
-  if (assigneeId) {
-    query.assigneeId = assigneeId;
-  }
+
   if (dueDate) {
-    const date = new Date(dueDate);
+    // Convert date string to Date object and get start/end of the day
+    const startDate = new Date(dueDate);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(dueDate);
+    endDate.setHours(23, 59, 59, 999);
+
     query.dueDate = {
-      $gte: new Date(date.setHours(0, 0, 0)),
-      $lt: new Date(date.setHours(23, 59, 59)),
+      $gte: startDate,
+      $lte: endDate
     };
   }
-  if (typeof isArchived === 'boolean') {
-    query.isArchived = isArchived;
-  }
+
   if (search) {
     query.$or = [
       { title: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } }
     ];
   }
 
+  // Get tasks with populated fields
   const tasks = await Task.find(query)
     .sort(sort)
-    .populate([
-      { path: 'projectId', select: 'title color icon' },
-      { path: 'assigneeId', select: 'name email avatar' },
-    ]);
+    .populate('projectId', 'title color icon')
+    .populate('assigneeId', 'name email avatar')
+    .populate({
+      path: 'comments.userId',
+      select: 'name email avatar'
+    });
 
   return res.json(
     new ApiResponse(200, tasks, 'Tasks fetched successfully')

@@ -27,6 +27,20 @@ const taskSchema = new mongoose.Schema(
     projectId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Project',
+      required: true,
+    },
+    sectionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
+    parentTaskId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Task',
+      default: null,
+    },
+    order: {
+      type: Number,
+      required: true,
     },
     assigneeId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -57,6 +71,33 @@ const taskSchema = new mongoose.Schema(
         default: Date.now,
       },
     }],
+    subtasks: [{
+      title: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      isCompleted: {
+        type: Boolean,
+        default: false,
+      },
+      order: {
+        type: Number,
+        required: true,
+      },
+      assigneeId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+      updatedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
     isArchived: {
       type: Boolean,
       default: false,
@@ -72,5 +113,7 @@ taskSchema.index({ projectId: 1, status: 1 });
 taskSchema.index({ assigneeId: 1, status: 1 });
 taskSchema.index({ dueDate: 1 });
 taskSchema.index({ isArchived: 1 });
+taskSchema.index({ sectionId: 1, order: 1 });
+taskSchema.index({ parentTaskId: 1 });
 
 export const Task = mongoose.model('Task', taskSchema); 
