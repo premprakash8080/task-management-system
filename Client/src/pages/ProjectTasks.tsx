@@ -13,7 +13,7 @@ import { PageLayout } from '../components/layout/PageLayout'
 import TaskDetails from '../components/tasks/TaskDetails'
 import TaskContainer from '../components/tasks/TaskContainer'
 import TasksHeader from '../components/tasks/header/TasksHeader'
-import { TasksProvider, useTasksContext } from '../components/tasks/TasksProvider'
+import { TasksProvider, useTasks } from '../components/tasks/TasksProvider'
 import projectsApi from '../services/api/projects'
 import tasksApi from '../services/api/tasks'
 import { Task, TaskStatus, TaskPriority, CreateTaskDto } from '../types/task'
@@ -25,18 +25,15 @@ const ProjectTasksContent = () => {
   const toast = useToast()
   const queryClient = useQueryClient()
   const {
-    currentView,
-    currentTab,
-    selectedTaskId,
-    isModalOpen,
-    setCurrentView,
-    setCurrentTab,
+    state: { currentView, currentTab, selectedTaskId, isModalOpen },
+    handleViewChange,
+    handleTabChange,
     handleTaskComplete,
     handleTaskUpdate,
     handleTaskCreate,
-    setIsModalOpen,
-    setSelectedTaskId,
-  } = useTasksContext()
+    handleModalClose,
+    handleTaskClick,
+  } = useTasks()
 
   // Fetch project data
   const { data: project, isLoading: isLoadingProject } = useQuery<Project>({
@@ -102,22 +99,13 @@ const ProjectTasksContent = () => {
     )
   }
 
-  // Handle task click
-  const handleTaskClick = (taskId: string) => {
-    setSelectedTaskId(taskId)
-    setIsModalOpen(true)
-  }
-
   // Handle task update
-  const handleTaskUpdateWrapper = async (updatedTask: Task) => {
+  const handleTaskUpdateWrapper = async (taskId: string, updates: Partial<Task>) => {
     try {
       // Update task in the backend
-      await tasksApi.updateTask(updatedTask.id, updatedTask)
+      await tasksApi.updateTask(taskId, updates)
       // Update local state
-      handleTaskUpdate(updatedTask)
-      if (updatedTask.id !== selectedTaskId) {
-        setSelectedTaskId(updatedTask.id)
-      }
+      await handleTaskUpdate(taskId, updates)
     } catch (error) {
       console.error('Failed to update task:', error)
       toast({
@@ -138,19 +126,16 @@ const ProjectTasksContent = () => {
       }
 
       const newTask: CreateTaskDto = {
+        ...task,
         title: task.title.trim(),
         description: task.description || '',
         projectId,
-        sectionId: task.sectionId,
         status: task.status || 'todo',
         priority: task.priority || 'medium',
-        dueDate: task.dueDate,
       }
 
-      // Create task in the backend
-      const createdTask = await tasksApi.createTask(newTask)
-      // Update local state
-      handleTaskCreate(createdTask)
+      // Create task in the backend and update local state
+      await handleTaskCreate(newTask)
     } catch (error) {
       console.error('Failed to create task:', error)
       toast({
@@ -168,7 +153,7 @@ const ProjectTasksContent = () => {
     try {
       await projectsApi.updateSection(projectId, sectionId, title)
       // Invalidate project query to refresh data
-      queryClient.invalidateQueries(['project', projectId])
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] })
       toast({
         title: 'Section updated',
         status: 'success',
@@ -190,7 +175,7 @@ const ProjectTasksContent = () => {
     try {
       await projectsApi.createSection(projectId, title)
       // Invalidate project query to refresh data
-      queryClient.invalidateQueries(['project', projectId])
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] })
       toast({
         title: 'Section created',
         status: 'success',
@@ -211,9 +196,9 @@ const ProjectTasksContent = () => {
     <Box h="100%" p={6}>
       <TasksHeader
         currentView={currentView}
-        onViewChange={setCurrentView}
+        onViewChange={handleViewChange}
         currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        onTabChange={handleTabChange}
       />
 
       <TaskContainer
@@ -225,15 +210,13 @@ const ProjectTasksContent = () => {
         onSectionUpdate={handleSectionUpdate}
         onSectionCreate={handleSectionCreate}
         currentView={currentView}
+        selectedProjectId={projectId}
       />
 
       {selectedTaskId && (
         <TaskDetails
           isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false)
-            setSelectedTaskId(null)
-          }}
+          onClose={handleModalClose}
           taskId={selectedTaskId}
           onTaskComplete={handleTaskComplete}
           onTaskUpdate={handleTaskUpdateWrapper}

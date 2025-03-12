@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react'
-import { Task, TaskFilters, TaskSortOptions } from '../types/task'
+import { Task, TaskFilters, TaskSortOptions, CreateTaskDto } from '../types/task'
 import tasksApi from '../services/api/tasks'
 
 interface TaskState {
@@ -25,7 +25,7 @@ const initialState: TaskState = {
   loading: false,
   error: null,
   filters: {},
-  sort: { field: 'updatedAt', direction: 'desc' }
+  sort: '-updatedAt'
 }
 
 const taskReducer = (state: TaskState, action: TaskAction): TaskState => {
@@ -40,7 +40,7 @@ const taskReducer = (state: TaskState, action: TaskAction): TaskState => {
       return {
         ...state,
         tasks: state.tasks.map(task =>
-          task.id === action.payload.id ? action.payload : task
+          task._id === action.payload._id ? action.payload : task
         )
       }
     case 'ADD_TASK':
@@ -48,7 +48,7 @@ const taskReducer = (state: TaskState, action: TaskAction): TaskState => {
     case 'DELETE_TASK':
       return {
         ...state,
-        tasks: state.tasks.filter(task => task.id !== action.payload)
+        tasks: state.tasks.filter(task => task._id !== action.payload)
       }
     case 'SET_FILTERS':
       return { ...state, filters: action.payload }
@@ -60,9 +60,9 @@ const taskReducer = (state: TaskState, action: TaskAction): TaskState => {
 }
 
 interface TaskContextValue extends TaskState {
-  fetchTasks: () => Promise<void>
+  fetchTasks: (filters?: TaskFilters) => Promise<void>
   getTaskById: (taskId: string) => Promise<Task>
-  createTask: (task: Partial<Task>) => Promise<Task>
+  createTask: (task: CreateTaskDto) => Promise<Task>
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<Task>
   deleteTask: (taskId: string) => Promise<void>
   setFilters: (filters: TaskFilters) => void
@@ -74,10 +74,14 @@ const TaskContext = createContext<TaskContextValue | undefined>(undefined)
 export const TaskProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(taskReducer, initialState)
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (filters?: TaskFilters) => {
     dispatch({ type: 'SET_LOADING', payload: true })
     try {
-      const tasks = await tasksApi.getTasks()
+      const tasks = await tasksApi.getTasks({
+        ...state.filters,
+        ...filters,
+        sort: state.sort
+      })
       dispatch({ type: 'SET_TASKS', payload: tasks })
       dispatch({ type: 'SET_ERROR', payload: null })
     } catch (error) {
@@ -85,7 +89,7 @@ export const TaskProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false })
     }
-  }, [])
+  }, [state.filters, state.sort])
 
   const getTaskById = useCallback(async (taskId: string) => {
     dispatch({ type: 'SET_LOADING', payload: true })
@@ -101,7 +105,7 @@ export const TaskProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [])
 
-  const createTask = useCallback(async (task: Partial<Task>) => {
+  const createTask = useCallback(async (task: CreateTaskDto) => {
     dispatch({ type: 'SET_LOADING', payload: true })
     try {
       const newTask = await tasksApi.createTask(task)

@@ -2,31 +2,31 @@ import { Box } from '@chakra-ui/react'
 import TaskDetails from '../components/tasks/TaskDetails'
 import TaskContainer from '../components/tasks/TaskContainer'
 import TasksHeader from '../components/tasks/header/TasksHeader'
-import { TasksProvider, useTasksContext } from '../components/tasks/TasksProvider'
-import { sampleData } from '../data/sampleData'
-import { useEffect } from 'react'
+import { TaskProvider, useTaskContext } from '../store/TaskContext'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { PageLayout } from '../components/layout/PageLayout'
-import { Task } from '../data/sampleData'
+import { Task, CreateTaskDto } from '../types/task'
+import { useAuth } from '../hooks/useAuth'
 
 const TasksContent = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  const { user: currentUser } = useAuth()
   const {
     tasks,
-    currentView,
-    currentTab,
-    selectedTaskId,
-    isModalOpen,
-    setCurrentView,
-    setCurrentTab,
-    handleTaskClick,
-    handleTaskComplete,
-    handleTaskUpdate,
-    handleTaskCreate,
-    setIsModalOpen,
-    setSelectedTaskId,
-  } = useTasksContext()
+    loading,
+    error,
+    fetchTasks,
+    createTask,
+    updateTask,
+    deleteTask,
+  } = useTaskContext()
+
+  const [currentView, setCurrentView] = useState<'list' | 'board' | 'calendar' | 'files'>('list')
+  const [currentTab, setCurrentTab] = useState<'all' | 'assigned' | 'created'>('assigned')
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   // Update view based on URL
   useEffect(() => {
@@ -40,7 +40,18 @@ const TasksContent = () => {
     } else if (path === '/my_tasks/files') {
       setCurrentView('files')
     }
-  }, [location.pathname, setCurrentView])
+  }, [location.pathname])
+
+  // Fetch tasks when tab changes
+  useEffect(() => {
+    if (!currentUser?._id) return;
+    
+    const filters = {
+      ...(currentTab === 'assigned' ? { assigneeId: [currentUser._id] } : {}),
+      ...(currentTab === 'created' ? { createdBy: currentUser._id } : {})
+    }
+    fetchTasks(filters)
+  }, [currentTab, fetchTasks, currentUser])
 
   // Update URL when view changes
   const handleViewChange = (view: 'list' | 'board' | 'calendar' | 'files') => {
@@ -53,18 +64,41 @@ const TasksContent = () => {
   }
 
   // Handle task click
-  const handleTaskClickWrapper = (taskId: string) => {
+  const handleTaskClick = (taskId: string) => {
     setSelectedTaskId(taskId)
     setIsModalOpen(true)
   }
 
-  // Handle task update
-  const handleTaskUpdateWrapper = (updatedTask: Task) => {
-    handleTaskUpdate(updatedTask)
-    // Update the selected task ID if the task ID changed
-    if (updatedTask.id !== selectedTaskId) {
-      setSelectedTaskId(updatedTask.id)
+  // Handle task complete
+  const handleTaskComplete = async (taskId: string) => {
+    const task = tasks.find(t => t._id === taskId)
+    if (task) {
+      await updateTask(taskId, {
+        status: task.status === 'completed' ? 'todo' : 'completed'
+      })
     }
+  }
+
+  // Handle task create
+  const handleTaskCreate = async (task: CreateTaskDto) => {
+    await createTask(task)
+  }
+
+  // Handle task update
+  const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
+    const updatedTask = await updateTask(taskId, updates)
+    // Update the selected task ID if the task ID changed
+    if (updatedTask._id !== selectedTaskId) {
+      setSelectedTaskId(updatedTask._id)
+    }
+  }
+
+  if (loading) {
+    return <Box p={6}>Loading...</Box>
+  }
+
+  if (error) {
+    return <Box p={6}>Error: {error}</Box>
   }
 
   return (
@@ -73,13 +107,13 @@ const TasksContent = () => {
         currentView={currentView}
         onViewChange={handleViewChange}
         currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        onTabChange={(tab: 'all' | 'assigned' | 'created') => setCurrentTab(tab)}
       />
 
       <TaskContainer
         tasks={tasks}
-        onTaskClick={handleTaskClickWrapper}
-        onTaskUpdate={handleTaskUpdateWrapper}
+        onTaskClick={handleTaskClick}
+        onTaskUpdate={handleTaskUpdate}
         onTaskCreate={handleTaskCreate}
         currentView={currentView}
       />
@@ -93,7 +127,7 @@ const TasksContent = () => {
           }}
           taskId={selectedTaskId}
           onTaskComplete={handleTaskComplete}
-          onTaskUpdate={handleTaskUpdateWrapper}
+          onTaskUpdate={handleTaskUpdate}
         />
       )}
     </Box>
@@ -101,13 +135,11 @@ const TasksContent = () => {
 }
 
 export default function MyTasks() {
-  const initialTasks = sampleData.tasks
-  
   return (
     <PageLayout>
-      <TasksProvider initialTasks={initialTasks}>
+      <TaskProvider>
         <TasksContent />
-      </TasksProvider>
+      </TaskProvider>
     </PageLayout>
   )
 } 

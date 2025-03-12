@@ -1,8 +1,11 @@
-import { Box, Flex, useColorModeValue } from '@chakra-ui/react'
+import { Box, Flex, useColorModeValue, Button, HStack, Icon } from '@chakra-ui/react'
+import { AiOutlinePlus } from 'react-icons/ai'
 
-interface TaskListHeaderProps {}
+export interface TaskListHeaderProps {
+  onAddSection: () => void
+}
 
-const TaskListHeader = ({}: TaskListHeaderProps) => {
+const TaskListHeader = ({ onAddSection }: TaskListHeaderProps) => {
   const borderColor = useColorModeValue('gray.200', 'gray.700')
   const bgColor = useColorModeValue('gray.50', 'gray.800')
   const textColor = useColorModeValue('gray.600', 'gray.400')
@@ -46,6 +49,18 @@ const TaskListHeader = ({}: TaskListHeaderProps) => {
           Edit
         </Box>
       </Flex>
+      <Box mb={4}>
+        <HStack justify="flex-end">
+          <Button
+            leftIcon={<Icon as={AiOutlinePlus} />}
+            size="sm"
+            variant="outline"
+            onClick={onAddSection}
+          >
+            Add Section
+          </Button>
+        </HStack>
+      </Box>
     </Box>
   )
 }

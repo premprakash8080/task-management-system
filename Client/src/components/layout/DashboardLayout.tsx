@@ -37,7 +37,7 @@ export default function DashboardLayout() {
   }
 
   return (
-    <Flex w="100vw" h="100vh" overflow="hidden" position="fixed" top={0} left={0}>
+    <Flex w="100vw" h="100vh" overflow="hidden">
       {/* Sidebar */}
       <Box
         position="fixed"
@@ -46,7 +46,7 @@ export default function DashboardLayout() {
         h="100vh"
         w={isSidebarCollapsed ? "60px" : "240px"}
         transition="width 0.2s"
-        zIndex={2}
+        zIndex={1000}
       >
         <Sidebar 
           onCollapse={(collapsed: boolean) => setIsSidebarCollapsed(collapsed)} 
@@ -55,12 +55,10 @@ export default function DashboardLayout() {
 
       {/* Main Content */}
       <MotionFlex
-        position="absolute"
-        left={isSidebarCollapsed ? "60px" : "240px"}
-        top={0}
-        right={0}
-        bottom={0}
+        ml={isSidebarCollapsed ? "60px" : "240px"}
+        flex={1}
         direction="column"
+        h="100vh"
         transition={{
           duration: 0.2,
           ease: "easeInOut"
@@ -76,7 +74,7 @@ export default function DashboardLayout() {
           bg="white"
           position="sticky"
           top={0}
-          zIndex={1}
+          zIndex={999}
         >
           <Header
             currentTab={currentTab}
@@ -87,11 +85,13 @@ export default function DashboardLayout() {
         </Box>
 
         {/* Page Content */}
-        <Box 
+        <Box
           flex={1} 
           w="100%"
           overflowY="auto"
           position="relative"
+          px={6}
+          py={4}
         >
           <AnimatePresence mode="wait">
             <Routes>

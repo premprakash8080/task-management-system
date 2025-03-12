@@ -7,7 +7,8 @@ import {
   Badge,
   useColorModeValue,
 } from '@chakra-ui/react'
-import { Task, Tag } from '../../data/sampleData'
+import { Task, CreateTaskDto } from '../../types/task'
+import { ProjectSection } from '../../types/project'
 import {
   DragDropContext,
   Droppable,
@@ -17,12 +18,20 @@ import {
   DraggableProvided,
   DraggableStateSnapshot,
 } from 'react-beautiful-dnd'
-import { sampleData } from '../../data/sampleData'
 
 interface TaskBoardProps {
   tasks: Task[]
   onTaskClick: (taskId: string) => void
-  onTaskUpdate: (task: Task) => void
+  onTaskUpdate: (taskId: string, updates: Partial<Task>) => Promise<void>
+  onTaskCreate: (task: CreateTaskDto) => Promise<void>
+  onTaskComplete: (taskId: string) => Promise<void>
+  onTaskProjectChange: (taskId: string, projectId: string) => Promise<void>
+  onTaskSectionChange: (taskId: string, sectionId: string) => Promise<void>
+  projectId: string
+  sections: ProjectSection[]
+  onSectionUpdate?: (sectionId: string, title: string) => Promise<void>
+  onSectionCreate?: (title: string) => Promise<void>
+  onSectionReorder?: (sectionIds: string[]) => Promise<void>
 }
 
 const columns = [
@@ -31,97 +40,84 @@ const columns = [
   { id: 'completed', title: 'Done', color: 'green.500' },
 ] as const
 
-const TaskBoard = ({ tasks, onTaskClick, onTaskUpdate }: TaskBoardProps) => {
+const TaskBoard: React.FC<TaskBoardProps> = ({
+  tasks,
+  onTaskClick,
+  onTaskUpdate,
+}) => {
   const bgColor = useColorModeValue('white', 'gray.800')
   const columnBgColor = useColorModeValue('gray.50', 'gray.700')
 
-  // Group tasks by status
-  const groupedTasks = columns.reduce((acc, column) => {
-    acc[column.id] = tasks.filter(task => task.status === column.id)
-    return acc
-  }, {} as Record<typeof columns[number]['id'], Task[]>)
-
   const handleDragEnd = (result: DropResult) => {
-    if (!result.destination || !onTaskUpdate) return
+    const { destination, source, draggableId } = result
 
-    const { source, destination, draggableId } = result
-    if (source.droppableId === destination.droppableId) return
+    if (!destination) return
 
-    const task = tasks.find(t => t.id === draggableId)
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return
+    }
+
+    const task = tasks.find(t => t._id === draggableId)
     if (!task) return
 
-    onTaskUpdate({
-      ...task,
+    onTaskUpdate(task._id, {
       status: destination.droppableId as Task['status']
     })
   }
 
-  const getTaskTags = (task: Task): Tag[] => {
-    return sampleData.tags.filter(tag => task.tags.includes(tag.id))
+  const getTasksByStatus = (status: Task['status']) => {
+    return tasks.filter(task => task.status === status)
   }
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <SimpleGrid columns={3} spacing={6}>
-        {columns.map(column => (
-          <Box key={column.id}>
-            <Heading size="sm" mb={4} color={column.color}>
-              {column.title} ({groupedTasks[column.id]?.length || 0})
+      <SimpleGrid columns={3} spacing={4} p={4}>
+        {['todo', 'in_progress', 'completed'].map(status => (
+          <Box key={status}>
+            <Heading size="md" mb={4} textTransform="capitalize">
+              {status.replace('_', ' ')}
             </Heading>
-            <Droppable droppableId={column.id}>
+            <Droppable droppableId={status}>
               {(provided: DroppableProvided) => (
                 <VStack
-                  align="stretch"
-                  spacing={3}
-                  minH="200px"
-                  bg={columnBgColor}
-                  p={4}
-                  borderRadius="lg"
-                  {...provided.droppableProps}
                   ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  spacing={2}
+                  align="stretch"
+                  minH="200px"
+                  bg={useColorModeValue('gray.50', 'gray.700')}
+                  p={2}
+                  borderRadius="md"
                 >
-                  {groupedTasks[column.id]?.map((task, index) => (
-                    <Draggable
-                      key={task.id}
-                      draggableId={task.id}
-                      index={index}
-                    >
+                  {getTasksByStatus(status as Task['status']).map((task, index) => (
+                    <Draggable key={task._id} draggableId={task._id} index={index}>
                       {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
                         <Box
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
-                          bg={bgColor}
-                          p={4}
-                          borderRadius="md"
+                          p={3}
+                          bg={useColorModeValue('white', 'gray.600')}
                           boxShadow="sm"
+                          borderRadius="md"
                           cursor="pointer"
-                          onClick={() => onTaskClick(task.id)}
-                          opacity={snapshot.isDragging ? 0.8 : 1}
-                          _hover={{ transform: 'translateY(-2px)', boxShadow: 'md' }}
-                          transition="all 0.2s"
+                          onClick={() => onTaskClick(task._id)}
+                          _hover={{ boxShadow: 'md' }}
+                          opacity={snapshot.isDragging ? 0.5 : 1}
                         >
-                          <Text fontWeight="medium" mb={2}>
-                            {task.title}
-                          </Text>
-                          <Box>
-                            {task.projectId && (
-                              <Badge
-                                colorScheme="blue"
-                                mr={2}
-                              >
-                                {task.projectId}
-                              </Badge>
-                            )}
-                            {getTaskTags(task).map(tag => (
-                              <Badge
-                                key={tag.id}
-                                colorScheme={tag.colorScheme}
-                                ml={2}
-                              >
-                                {tag.label}
-                              </Badge>
-                            ))}
+                          <Text fontWeight="medium">{task.title}</Text>
+                          {task.description && (
+                            <Text fontSize="sm" color="gray.500" noOfLines={2}>
+                              {task.description}
+                            </Text>
+                          )}
+                          <Box mt={2}>
+                            <Badge colorScheme={task.priority === 'high' ? 'red' : task.priority === 'medium' ? 'yellow' : 'green'}>
+                              {task.priority}
+                            </Badge>
                           </Box>
                         </Box>
                       )}

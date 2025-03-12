@@ -152,7 +152,7 @@ const TaskList = memo(({
           
           {/* Unassigned Tasks Section */}
           {unassignedTasks.length > 0 && (
-            <Box mt={4}>
+            <Box key="unassigned-section" mt={4}>
               <TaskListSectionHeader
                 title="Unassigned Tasks"
                 count={unassignedTasks.length}
@@ -177,6 +177,7 @@ const TaskList = memo(({
                   />
                 ))}
                 <Input
+                  key="unassigned-input"
                   placeholder="Press Enter to add a new task"
                   size="sm"
                   value={newTaskInputs['unassigned'] || ''}

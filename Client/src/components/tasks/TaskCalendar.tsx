@@ -1,139 +1,109 @@
 import {
   Box,
+  Heading,
   SimpleGrid,
-  Text,
   VStack,
+  Text,
   Badge,
   useColorModeValue,
 } from '@chakra-ui/react'
-import { Task } from '../../store/initialData'
-import { useState } from 'react'
+import { Task, CreateTaskDto } from '../../types/task'
+import { ProjectSection } from '../../types/project'
+import { format } from 'date-fns'
 
 interface TaskCalendarProps {
   tasks: Task[]
-  onTaskClick?: (task: Task) => void
-  onTaskUpdate?: (task: Task) => void
-  onTaskCreate?: (task: Partial<Task>) => void
+  onTaskClick: (taskId: string) => void
+  onTaskUpdate: (taskId: string, updates: Partial<Task>) => Promise<void>
+  onTaskCreate: (task: CreateTaskDto) => Promise<void>
+  onTaskComplete: (taskId: string) => Promise<void>
+  onTaskProjectChange: (taskId: string, projectId: string) => Promise<void>
+  onTaskSectionChange: (taskId: string, sectionId: string) => Promise<void>
+  projectId: string
+  sections: ProjectSection[]
+  onSectionUpdate?: (sectionId: string, title: string) => Promise<void>
+  onSectionCreate?: (title: string) => Promise<void>
+  onSectionReorder?: (sectionIds: string[]) => Promise<void>
 }
 
-const TaskCalendar = ({
+const TaskCalendar: React.FC<TaskCalendarProps> = ({
   tasks,
   onTaskClick,
   onTaskUpdate,
-  onTaskCreate,
-}: TaskCalendarProps) => {
-  const [currentDate] = useState(new Date())
+}) => {
   const bgColor = useColorModeValue('white', 'gray.800')
 
-  // Get the first day of the month
-  const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
-  const startingDay = firstDay.getDay()
+  const getTasksByDate = () => {
+    const tasksByDate: { [key: string]: Task[] } = {}
+    tasks.forEach(task => {
+      if (task.dueDate) {
+        const date = format(new Date(task.dueDate), 'yyyy-MM-dd')
+        if (!tasksByDate[date]) {
+          tasksByDate[date] = []
+        }
+        tasksByDate[date].push(task)
+      }
+    })
+    return tasksByDate
+  }
 
-  // Get the last day of the month
-  const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
-  const totalDays = lastDay.getDate()
-
-  // Create calendar days array
-  const days = Array.from({ length: 42 }, (_, i) => {
-    const dayNumber = i - startingDay + 1
-    if (dayNumber < 1 || dayNumber > totalDays) return null
-    return dayNumber
-  })
-
-  // Group tasks by date
-  const tasksByDate = tasks.reduce((acc, task) => {
-    if (!task.dueDate) return acc
-    const date = new Date(task.dueDate)
-    if (
-      date.getMonth() === currentDate.getMonth() &&
-      date.getFullYear() === currentDate.getFullYear()
-    ) {
-      const key = date.getDate()
-      if (!acc[key]) acc[key] = []
-      acc[key].push(task)
-    }
-    return acc
-  }, {} as Record<number, Task[]>)
-
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const tasksByDate = getTasksByDate()
 
   return (
-    <Box>
-      {/* Calendar Header */}
-      <SimpleGrid columns={7} spacing={1} mb={1}>
-        {weekDays.map(day => (
-          <Box
-            key={day}
-            p={2}
-            textAlign="center"
-            fontWeight="medium"
-            color="gray.600"
-          >
-            {day}
-          </Box>
-        ))}
-      </SimpleGrid>
-
-      {/* Calendar Grid */}
-      <SimpleGrid columns={7} spacing={1}>
-        {days.map((day, index) => (
-          <Box
-            key={index}
-            bg={bgColor}
-            p={2}
-            minH="120px"
-            borderRadius="md"
-            opacity={day ? 1 : 0.3}
-            cursor={day ? 'pointer' : 'default'}
-            onClick={() => {
-              if (day && onTaskCreate) {
-                const newDate = new Date(
-                  currentDate.getFullYear(),
-                  currentDate.getMonth(),
-                  day
-                )
-                onTaskCreate({
-                  dueDate: newDate.toISOString().split('T')[0],
-                })
-              }
-            }}
-          >
-            <Text fontSize="sm" mb={2}>
-              {day}
-            </Text>
-            {day && tasksByDate[day] && (
-              <VStack align="stretch" spacing={1}>
-                {tasksByDate[day].map(task => (
-                  <Box
-                    key={task.id}
-                    p={1}
-                    bg="gray.50"
-                    borderRadius="sm"
-                    fontSize="xs"
-                    cursor="pointer"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onTaskClick?.(task)
-                    }}
-                    _hover={{ bg: 'gray.100' }}
+    <Box p={4}>
+      {Object.entries(tasksByDate).map(([date, dateTasks]) => (
+        <Box key={date} mb={6}>
+          <Heading size="md" mb={4}>
+            {format(new Date(date), 'MMMM d, yyyy')}
+          </Heading>
+          <SimpleGrid columns={1} spacing={4}>
+            {dateTasks.map(task => (
+              <Box
+                key={task._id}
+                p={4}
+                bg={bgColor}
+                borderRadius="md"
+                boxShadow="sm"
+                cursor="pointer"
+                onClick={() => onTaskClick(task._id)}
+                _hover={{ boxShadow: 'md' }}
+              >
+                <Text fontWeight="medium">{task.title}</Text>
+                {task.description && (
+                  <Text fontSize="sm" color="gray.500" noOfLines={2} mt={1}>
+                    {task.description}
+                  </Text>
+                )}
+                <Box mt={2}>
+                  <Badge
+                    colorScheme={
+                      task.priority === 'high'
+                        ? 'red'
+                        : task.priority === 'medium'
+                        ? 'yellow'
+                        : 'green'
+                    }
+                    mr={2}
                   >
-                    <Text noOfLines={1}>{task.title}</Text>
-                    {task.project && (
-                      <Badge
-                        size="sm"
-                        colorScheme={task.project.color.split('.')[0]}
-                        variant="subtle"
-                      >
-                        {task.project.name}
-                      </Badge>
-                    )}
-                  </Box>
-                ))}
-              </VStack>
-            )}
-          </Box>
-        ))}
-      </SimpleGrid>
+                    {task.priority}
+                  </Badge>
+                  <Badge
+                    colorScheme={
+                      task.status === 'completed'
+                        ? 'green'
+                        : task.status === 'in_progress'
+                        ? 'yellow'
+                        : 'gray'
+                    }
+                  >
+                    {task.status.replace('_', ' ')}
+                  </Badge>
+                </Box>
+              </Box>
+            ))}
+          </SimpleGrid>
+        </Box>
+      ))}
     </Box>
   )
 }

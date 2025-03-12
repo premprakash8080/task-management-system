@@ -10,10 +10,11 @@ import { projectApi } from '../../services/api/project'
 
 interface TaskContainerProps {
   tasks: Task[]
-  sections: ProjectSection[]
+  sections?: ProjectSection[]
   onTaskClick: (taskId: string) => void
-  onTaskUpdate: (task: Task) => Promise<void>
+  onTaskUpdate: (taskId: string, updates: Partial<Task>) => Promise<void>
   onTaskCreate: (task: CreateTaskDto) => Promise<void>
+  onTaskComplete: (taskId: string) => Promise<void>
   onSectionUpdate: (sectionId: string, title: string) => Promise<void>
   onSectionCreate: (title: string) => Promise<void>
   currentView: 'list' | 'board' | 'calendar' | 'files'
@@ -22,10 +23,11 @@ interface TaskContainerProps {
 
 const TaskContainer = memo(({
   tasks,
-  sections,
+  sections = [],
   onTaskClick,
   onTaskUpdate,
   onTaskCreate,
+  onTaskComplete,
   onSectionUpdate,
   onSectionCreate,
   currentView,
@@ -42,34 +44,12 @@ const TaskContainer = memo(({
     console.log('Selected project:', selectedProjectId)
   }, [currentView, selectedProjectId])
 
-  const handleTaskComplete = (taskId: string) => {
-    const task = tasks.find(t => t._id === taskId)
-    if (task) {
-      onTaskUpdate({
-        ...task,
-        status: task.status === 'completed' ? 'todo' : 'completed'
-      })
-    }
+  const handleTaskProjectChange = async (taskId: string, projectId: string) => {
+    await onTaskUpdate(taskId, { projectId })
   }
 
-  const handleTaskProjectChange = (taskId: string, projectId: string) => {
-    const task = tasks.find(t => t._id === taskId)
-    if (task) {
-      onTaskUpdate({
-        ...task,
-        projectId
-      })
-    }
-  }
-
-  const handleTaskSectionChange = (taskId: string, sectionId: string) => {
-    const task = tasks.find(t => t._id === taskId)
-    if (task) {
-      onTaskUpdate({
-        ...task,
-        sectionId
-      })
-    }
+  const handleTaskSectionChange = async (taskId: string, sectionId: string) => {
+    await onTaskUpdate(taskId, { sectionId })
   }
 
   const handleTaskCreate = async (task: CreateTaskDto) => {
@@ -94,46 +74,54 @@ const TaskContainer = memo(({
     }
   }
 
-  const commonProps = useMemo(() => ({
+  // Wrapper for task updates to match the expected function signature for TaskList
+  const handleTaskUpdateForList = async (task: Task) => {
+    const { _id, ...updates } = task
+    await onTaskUpdate(_id, updates)
+  }
+
+  const listProps = {
     tasks: filteredTasks,
     sections,
     onTaskClick,
-    onTaskUpdate,
+    onTaskUpdate: handleTaskUpdateForList,
     onTaskCreate: handleTaskCreate,
-    onTaskComplete: handleTaskComplete,
+    onTaskComplete,
     onTaskProjectChange: handleTaskProjectChange,
     onTaskSectionChange: handleTaskSectionChange,
     onSectionUpdate,
     onSectionCreate,
     onSectionReorder: handleSectionReorder,
     projectId: selectedProjectId || '',
-  }), [
-    filteredTasks,
+  }
+
+  const otherViewProps = {
+    tasks: filteredTasks,
     sections,
     onTaskClick,
     onTaskUpdate,
-    handleTaskCreate,
-    handleTaskComplete,
-    handleTaskProjectChange,
-    handleTaskSectionChange,
+    onTaskCreate: handleTaskCreate,
+    onTaskComplete,
+    onTaskProjectChange: handleTaskProjectChange,
+    onTaskSectionChange: handleTaskSectionChange,
     onSectionUpdate,
     onSectionCreate,
-    handleSectionReorder,
-    selectedProjectId,
-  ])
+    onSectionReorder: handleSectionReorder,
+    projectId: selectedProjectId || '',
+  }
 
   const renderView = () => {
     switch (currentView) {
       case 'list':
-        return <TaskList {...commonProps} />
+        return <TaskList {...listProps} />
       case 'board':
-        return <TaskBoard {...commonProps} />
+        return <TaskBoard {...otherViewProps} />
       case 'calendar':
-        return <TaskCalendar {...commonProps} />
+        return <TaskCalendar {...otherViewProps} />
       case 'files':
-        return <TaskFiles tasks={filteredTasks} onTaskClick={onTaskClick} />
+        return <TaskFiles {...otherViewProps} />
       default:
-        return <TaskList {...commonProps} />
+        return <TaskList {...listProps} />
     }
   }
 

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, useMemo } from 'react'
-import { Task } from '../../data/sampleData'
+import { Task, CreateTaskDto } from '../../types/task'
 
 interface TasksState {
   tasks: Task[]
@@ -9,61 +9,58 @@ interface TasksState {
   isModalOpen: boolean
 }
 
-interface TasksContextType extends TasksState {
-  setCurrentView: (view: 'list' | 'board' | 'calendar' | 'files') => void
-  setCurrentTab: (tab: string) => void
-  setSelectedTaskId: (taskId: string | null) => void
-  setIsModalOpen: (isOpen: boolean) => void
+interface TasksContextType {
+  state: TasksState
+  dispatch: React.Dispatch<TasksAction>
   handleTaskClick: (taskId: string) => void
-  handleTaskComplete: (taskId: string) => void
-  handleTaskUpdate: (task: Task) => void
-  handleTaskCreate: (task: Omit<Task, 'id'>) => void
+  handleTaskUpdate: (taskId: string, updates: Partial<Task>) => Promise<void>
+  handleTaskCreate: (task: CreateTaskDto) => Promise<void>
+  handleTaskComplete: (taskId: string) => Promise<void>
+  handleViewChange: (view: TasksState['currentView']) => void
+  handleTabChange: (tab: string) => void
+  handleModalClose: () => void
 }
 
 type TasksAction =
-  | { type: 'SET_VIEW'; payload: 'list' | 'board' | 'calendar' | 'files' }
+  | { type: 'SET_TASKS'; payload: Task[] }
+  | { type: 'UPDATE_TASK'; payload: { taskId: string; updates: Partial<Task> } }
+  | { type: 'ADD_TASK'; payload: Task }
+  | { type: 'SET_VIEW'; payload: TasksState['currentView'] }
   | { type: 'SET_TAB'; payload: string }
-  | { type: 'SELECT_TASK'; payload: string | null }
-  | { type: 'SET_MODAL'; payload: boolean }
-  | { type: 'COMPLETE_TASK'; payload: string }
-  | { type: 'UPDATE_TASK'; payload: Task }
-  | { type: 'CREATE_TASK'; payload: Task }
+  | { type: 'SET_SELECTED_TASK'; payload: string | null }
+  | { type: 'SET_MODAL_OPEN'; payload: boolean }
+
+const initialState: TasksState = {
+  tasks: [],
+  currentView: 'list',
+  currentTab: 'all',
+  selectedTaskId: null,
+  isModalOpen: false,
+}
 
 const tasksReducer = (state: TasksState, action: TasksAction): TasksState => {
   switch (action.type) {
-    case 'SET_VIEW':
-      return { ...state, currentView: action.payload }
-    case 'SET_TAB':
-      return { ...state, currentTab: action.payload }
-    case 'SELECT_TASK':
-      return { 
-        ...state, 
-        selectedTaskId: action.payload,
-        isModalOpen: !!action.payload 
-      }
-    case 'SET_MODAL':
-      return { ...state, isModalOpen: action.payload }
-    case 'COMPLETE_TASK':
-      return {
-        ...state,
-        tasks: state.tasks.map(task =>
-          task.id === action.payload
-            ? { ...task, status: task.status === 'completed' ? 'todo' : 'completed' }
-            : task
-        )
-      }
+    case 'SET_TASKS':
+      return { ...state, tasks: action.payload }
     case 'UPDATE_TASK':
       return {
         ...state,
         tasks: state.tasks.map(task =>
-          task.id === action.payload.id ? action.payload : task
-        )
+          task._id === action.payload.taskId
+            ? { ...task, ...action.payload.updates }
+            : task
+        ),
       }
-    case 'CREATE_TASK':
-      return {
-        ...state,
-        tasks: [...state.tasks, action.payload]
-      }
+    case 'ADD_TASK':
+      return { ...state, tasks: [...state.tasks, action.payload] }
+    case 'SET_VIEW':
+      return { ...state, currentView: action.payload }
+    case 'SET_TAB':
+      return { ...state, currentTab: action.payload }
+    case 'SET_SELECTED_TASK':
+      return { ...state, selectedTaskId: action.payload }
+    case 'SET_MODAL_OPEN':
+      return { ...state, isModalOpen: action.payload }
     default:
       return state
   }
@@ -76,80 +73,104 @@ interface TasksProviderProps {
   initialTasks: Task[]
 }
 
-export const TasksProvider: React.FC<TasksProviderProps> = ({ children, initialTasks }) => {
+export const TasksProvider: React.FC<TasksProviderProps> = ({
+  children,
+  initialTasks,
+}) => {
   const [state, dispatch] = useReducer(tasksReducer, {
+    ...initialState,
     tasks: initialTasks,
-    currentView: 'list',
-    currentTab: 'all',
-    selectedTaskId: null,
-    isModalOpen: false
   })
 
-  const setCurrentView = useCallback((view: 'list' | 'board' | 'calendar' | 'files') => {
+  const handleTaskClick = useCallback((taskId: string) => {
+    dispatch({ type: 'SET_SELECTED_TASK', payload: taskId })
+    dispatch({ type: 'SET_MODAL_OPEN', payload: true })
+  }, [])
+
+  const handleTaskUpdate = useCallback(async (taskId: string, updates: Partial<Task>) => {
+    dispatch({
+      type: 'UPDATE_TASK',
+      payload: { taskId, updates },
+    })
+  }, [])
+
+  const handleTaskCreate = useCallback(async (task: CreateTaskDto) => {
+    // In a real app, you would make an API call here
+    const newTask: Task = {
+      _id: Math.random().toString(),
+      title: task.title,
+      description: task.description || '',
+      status: task.status || 'todo',
+      priority: task.priority || 'medium',
+      dueDate: task.dueDate,
+      assigneeId: task.assigneeId ? { _id: task.assigneeId, email: '' } : undefined,
+      projectId: task.projectId,
+      sectionId: task.sectionId || undefined,
+      parentTaskId: task.parentTaskId || null,
+      subtasks: [],
+      attachments: [],
+      comments: [],
+      isArchived: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    dispatch({ type: 'ADD_TASK', payload: newTask })
+  }, [])
+
+  const handleTaskComplete = useCallback(async (taskId: string) => {
+    const task = state.tasks.find(t => t._id === taskId)
+    if (task) {
+      await handleTaskUpdate(taskId, {
+        status: task.status === 'completed' ? 'todo' : 'completed'
+      })
+    }
+  }, [state.tasks, handleTaskUpdate])
+
+  const handleViewChange = useCallback((view: TasksState['currentView']) => {
     dispatch({ type: 'SET_VIEW', payload: view })
   }, [])
 
-  const setCurrentTab = useCallback((tab: string) => {
+  const handleTabChange = useCallback((tab: string) => {
     dispatch({ type: 'SET_TAB', payload: tab })
   }, [])
 
-  const setSelectedTaskId = useCallback((taskId: string | null) => {
-    dispatch({ type: 'SELECT_TASK', payload: taskId })
+  const handleModalClose = useCallback(() => {
+    dispatch({ type: 'SET_MODAL_OPEN', payload: false })
   }, [])
 
-  const setIsModalOpen = useCallback((isOpen: boolean) => {
-    dispatch({ type: 'SET_MODAL', payload: isOpen })
-  }, [])
-
-  const handleTaskClick = useCallback((taskId: string) => {
-    dispatch({ type: 'SELECT_TASK', payload: taskId })
-  }, [])
-
-  const handleTaskComplete = useCallback((taskId: string) => {
-    dispatch({ type: 'COMPLETE_TASK', payload: taskId })
-  }, [])
-
-  const handleTaskUpdate = useCallback((task: Task) => {
-    dispatch({ type: 'UPDATE_TASK', payload: task })
-  }, [])
-
-  const handleTaskCreate = useCallback((newTask: Omit<Task, 'id'>) => {
-    const task: Task = {
-      ...newTask,
-      id: `task-${Date.now()}`,
-    }
-    dispatch({ type: 'CREATE_TASK', payload: task })
-  }, [])
-
-  const value = useMemo(() => ({
-    ...state,
-    setCurrentView,
-    setCurrentTab,
-    setSelectedTaskId,
-    setIsModalOpen,
-    handleTaskClick,
-    handleTaskComplete,
-    handleTaskUpdate,
-    handleTaskCreate,
-  }), [
-    state,
-    setCurrentView,
-    setCurrentTab,
-    setSelectedTaskId,
-    setIsModalOpen,
-    handleTaskClick,
-    handleTaskComplete,
-    handleTaskUpdate,
-    handleTaskCreate,
-  ])
+  const value = useMemo(
+    () => ({
+      state,
+      dispatch,
+      handleTaskClick,
+      handleTaskUpdate,
+      handleTaskCreate,
+      handleTaskComplete,
+      handleViewChange,
+      handleTabChange,
+      handleModalClose,
+    }),
+    [
+      state,
+      handleTaskClick,
+      handleTaskUpdate,
+      handleTaskCreate,
+      handleTaskComplete,
+      handleViewChange,
+      handleTabChange,
+      handleModalClose,
+    ]
+  )
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>
 }
 
-export const useTasksContext = () => {
+export const useTasks = () => {
   const context = useContext(TasksContext)
   if (!context) {
-    throw new Error('useTasksContext must be used within a TasksProvider')
+    throw new Error('useTasks must be used within a TasksProvider')
   }
   return context
-} 
+}
+
+export default TasksProvider 

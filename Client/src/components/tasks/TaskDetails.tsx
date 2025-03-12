@@ -28,7 +28,9 @@ import {
   GridItem,
   useBreakpointValue,
 } from '@chakra-ui/react';
-import { Task, Tag, Project, User } from '../../data/sampleData';
+import { Task, TaskStatus, TaskPriority, User } from '../../types/task';
+import { FiCalendar, FiClock, FiFlag, FiCheckCircle, FiTrash2, FiPaperclip } from 'react-icons/fi';
+import { format } from 'date-fns';
 import RightSidebar from '../layout/RightSidebar';
 import { sampleData } from '../../data/sampleData';
 import {
@@ -59,7 +61,7 @@ interface TaskDetailsProps {
   onClose: () => void;
   taskId: string;
   onTaskComplete?: (taskId: string) => void;
-  onTaskUpdate?: (task: Task) => void;
+  onTaskUpdate?: (taskId: string, updates: Partial<Task>) => Promise<void>;
 }
 
 interface TaskDetailsState {
@@ -76,7 +78,7 @@ const TaskDetails = ({ isOpen, onClose, taskId, onTaskComplete, onTaskUpdate }: 
   // State hooks - keep these at the top
   const [state, setState] = useState<TaskDetailsState>({
     task: null,
-    loading: false,
+    loading: true,
     error: null,
   });
   const [taskName, setTaskName] = useState('');
@@ -191,39 +193,77 @@ const TaskDetails = ({ isOpen, onClose, taskId, onTaskComplete, onTaskUpdate }: 
     }
   }, [task, taskId, onTaskComplete, toast]);
 
-  const handleTaskUpdate = useCallback(async (updates: Partial<Task>) => {
-    if (!task) return;
-
+  const handleTaskUpdate = async (updates: Partial<Task>) => {
+    if (!state.task || !onTaskUpdate) return;
     try {
-      const updatedTask = { ...task, ...updates };
-
-      setState(prev => ({ ...prev, task: updatedTask }));
-      
-      taskCache.set(taskId, {
-        data: updatedTask,
-        timestamp: Date.now(),
-      });
-
-      onTaskUpdate?.(updatedTask);
-
-      toast({
-        title: 'Success',
-        description: 'Task updated successfully',
-        status: 'success',
-        duration: 2000,
-        isClosable: true,
-      });
+      await onTaskUpdate(state.task._id, updates);
+      setState(prev => ({
+        ...prev,
+        task: prev.task ? { ...prev.task, ...updates } : null,
+      }));
     } catch (error) {
-      setState(prev => ({ ...prev, task }));
-      toast({
-        title: 'Error',
-        description: 'Failed to update task',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+      console.error('Failed to update task:', error);
     }
-  }, [task, taskId, onTaskUpdate, toast]);
+  };
+
+  const handleStatusChange = async (status: TaskStatus) => {
+    await handleTaskUpdate({ status });
+  };
+
+  const handlePriorityChange = async (priority: TaskPriority) => {
+    await handleTaskUpdate({ priority });
+  };
+
+  const handleDueDateChange = async (dueDate: string) => {
+    if (dueDate) {
+      await handleTaskUpdate({ dueDate });
+    }
+  };
+
+  const handleAssigneeChange = async (assignee: User) => {
+    await handleTaskUpdate({ assigneeId: assignee });
+  };
+
+  const handleTitleChange = async (title: string) => {
+    if (title.trim()) {
+      await handleTaskUpdate({ title: title.trim() });
+    }
+  };
+
+  const handleDescriptionChange = async (description: string) => {
+    await handleTaskUpdate({ description: description.trim() });
+  };
+
+  const handleComplete = async () => {
+    if (!state.task || !onTaskComplete) return;
+    await onTaskComplete(state.task._id);
+  };
+
+  const getStatusColor = (status: TaskStatus) => {
+    switch (status) {
+      case 'completed':
+        return 'green';
+      case 'in_progress':
+        return 'yellow';
+      case 'todo':
+        return 'gray';
+      default:
+        return 'gray';
+    }
+  };
+
+  const getPriorityColor = (priority: TaskPriority) => {
+    switch (priority) {
+      case 'high':
+        return 'red';
+      case 'medium':
+        return 'yellow';
+      case 'low':
+        return 'green';
+      default:
+        return 'gray';
+    }
+  };
 
   // Effects
   useEffect(() => {
@@ -298,7 +338,7 @@ const TaskDetails = ({ isOpen, onClose, taskId, onTaskComplete, onTaskUpdate }: 
           value={taskName}
           onChange={(e) => {
             setTaskName(e.target.value);
-            handleTaskUpdate({ title: e.target.value });
+            handleTitleChange(e.target.value);
           }}
           placeholder="Task title"
           size="lg"
@@ -327,9 +367,9 @@ const TaskDetails = ({ isOpen, onClose, taskId, onTaskComplete, onTaskUpdate }: 
                 {dueDate || 'Set due date'}
               </MenuButton>
               <MenuList>
-                <MenuItem onClick={() => handleTaskUpdate({ dueDate: 'Tomorrow' })}>Tomorrow</MenuItem>
-                <MenuItem onClick={() => handleTaskUpdate({ dueDate: 'Next Week' })}>Next Week</MenuItem>
-                <MenuItem onClick={() => handleTaskUpdate({ dueDate: 'No Due Date' })}>No Due Date</MenuItem>
+                <MenuItem onClick={() => handleDueDateChange('Tomorrow')}>Tomorrow</MenuItem>
+                <MenuItem onClick={() => handleDueDateChange('Next Week')}>Next Week</MenuItem>
+                <MenuItem onClick={() => handleDueDateChange('No Due Date')}>No Due Date</MenuItem>
               </MenuList>
             </Menu>
           </Box>
@@ -357,7 +397,7 @@ const TaskDetails = ({ isOpen, onClose, taskId, onTaskComplete, onTaskUpdate }: 
                 {sampleData.users.map(user => (
                   <MenuItem
                     key={user.id}
-                    onClick={() => handleTaskUpdate({ assigneeId: user.id })}
+                    onClick={() => handleAssigneeChange(user)}
                   >
                     <HStack>
                       <Avatar size="xs" src={user.avatar} />
@@ -438,7 +478,7 @@ const TaskDetails = ({ isOpen, onClose, taskId, onTaskComplete, onTaskUpdate }: 
               value={description}
               onChange={(e) => {
                 setDescription(e.target.value);
-                handleTaskUpdate({ description: e.target.value });
+                handleDescriptionChange(e.target.value);
               }}
               minH="120px"
               variant="filled"
@@ -473,7 +513,7 @@ const TaskDetails = ({ isOpen, onClose, taskId, onTaskComplete, onTaskUpdate }: 
                   _hover={{ bg: 'gray.100' }}
                   transition="all 0.2s"
                 >
-                  <Icon as={AiOutlinePaperClip} color="gray.500" />
+                  <Icon as={FiPaperclip} color="gray.500" />
                   <Text fontSize="sm" flex={1}>{attachment.name}</Text>
                   <Text fontSize="xs" color="gray.500" mr={2}>
                     {Math.round(attachment.size / 1024)} KB
