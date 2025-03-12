@@ -36,11 +36,14 @@ import {
   AiOutlineSearch,
   AiOutlineMore,
 } from 'react-icons/ai'
-import { Link as RouterLink, useLocation } from 'react-router-dom'
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import ProjectTaskPanel from '../projects/ProjectTaskPanel'
-import { Project, Task } from '../../data/sampleData'
+import { Project } from '../../types/project'
+import { Task } from '../../types/task'
+import { useQuery } from '@tanstack/react-query'
+import projectsApi from '../../services/api/projects'
 
 const MotionBox = motion(Box)
 const MotionFlex = motion(Flex)
@@ -233,26 +236,37 @@ const ProjectItem = ({
 
 interface SidebarProps extends BoxProps {
   onCollapse?: (collapsed: boolean) => void;
-  projects?: Project[];
-  tasks: Task[];
-  onTaskClick: (taskId: string) => void;
-  onTaskUpdate: (task: Task) => void;
-  onTaskCreate: (task: Partial<Task>) => void;
 }
 
 export default function Sidebar({
   onCollapse,
-  projects = [],
-  tasks,
-  onTaskClick,
-  onTaskUpdate,
-  onTaskCreate,
   ...props
 }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [selectedProject, setSelectedProject] = useState<Project | undefined>()
-  const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
+
+  // Fetch projects using React Query
+  const { data: projects = [], isLoading: isLoadingProjects } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      try {
+        const result = await projectsApi.getProjects();
+        console.log('Fetched projects:', result);
+        return result;
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+        return [];
+      }
+    },
+    staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
+  })
+
+  const activeProjects = projects.filter(project => {
+    const isActive = project?.status === 'active' || !project?.status;
+    console.log(`Project ${project?.id}: status=${project?.status}, isActive=${isActive}`);
+    return isActive;
+  });
 
   const handleToggle = () => {
     const newCollapsed = !isCollapsed
@@ -261,24 +275,43 @@ export default function Sidebar({
   }
 
   const handleProjectSelect = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId)
-    setSelectedProject(project)
-    setIsTaskPanelOpen(true)
+    console.log('Project selected:', projectId);
+    if (!projectId) {
+      console.error('Invalid project ID');
+      return;
+    }
+    
+    // Find the project to verify it exists
+    const project = projects.find(p => p.id === projectId);
+    if (!project) {
+      console.error('Project not found:', projectId);
+      return;
+    }
+    
+    console.log('Navigating to project:', project);
+    navigate(`/projects/${projectId}/tasks`);
   }
 
   // Update ProjectItem usage in both collapsed and expanded views
-  const renderProjectItem = (project: Project) => (
-    <ProjectItem
-      key={project.id}
-      name={project.title}
-      color={project.color}
-      to={`/projects/${project.id}`}
-      isActive={location.pathname === `/projects/${project.id}`}
-      isCollapsed={isCollapsed}
-      onProjectSelect={handleProjectSelect}
-      projectId={project.id}
-    />
-  )
+  const renderProjectItem = (project: Project) => {
+    if (!project?.id) {
+      console.warn('Invalid project data:', project);
+      return null;
+    }
+    
+    return (
+      <ProjectItem
+        key={project.id}
+        name={project.title}
+        color={project.color || '#CBD5E0'} // Provide fallback color
+        to={`/projects/${project.id}/tasks`}
+        isActive={location.pathname.startsWith(`/projects/${project.id}`)}
+        isCollapsed={isCollapsed}
+        onProjectSelect={handleProjectSelect}
+        projectId={project.id}
+      />
+    );
+  };
 
   return (
     <>
@@ -374,7 +407,20 @@ export default function Sidebar({
         >
           {isCollapsed ? (
             <VStack spacing={1} align="stretch" px={1.5}>
-              {(projects || []).slice(0, 3).map(project => renderProjectItem(project))}
+              {isLoadingProjects ? (
+                // Show loading skeleton for projects
+                Array.from({ length: 3 }).map((_, i) => (
+                  <Box
+                    key={i}
+                    height="36px"
+                    bg="gray.100"
+                    borderRadius="md"
+                    animation="pulse 1.5s infinite"
+                  />
+                ))
+              ) : (
+                projects.slice(0, 3).map(project => renderProjectItem(project))
+              )}
             </VStack>
           ) : (
             <>
@@ -399,7 +445,23 @@ export default function Sidebar({
                         align="stretch" 
                         spacing={1}
                       >
-                        {(projects || []).slice(0, 3).map(project => renderProjectItem(project))}
+                        {isLoadingProjects ? (
+                          // Show loading skeleton for projects
+                          Array.from({ length: 3 }).map((_, i) => (
+                            <Box
+                              key={i}
+                              height="36px"
+                              bg="gray.100"
+                              borderRadius="md"
+                              animation="pulse 1.5s infinite"
+                            />
+                          ))
+                        ) : (
+                          projects
+                            .filter(project => project.status === 'active')
+                            .slice(0, 3)
+                            .map(project => renderProjectItem(project))
+                        )}
                         <NavItem label="All Items" to="/all-items" icon={AiOutlineInbox} isCollapsed={false} />
                         <NavItem label="Deleted Items" to="/trash" icon={AiOutlineDelete} isCollapsed={false} />
                       </VStack>
@@ -463,7 +525,20 @@ export default function Sidebar({
 
                 {/* Projects */}
                 <VStack align="stretch" spacing={1}>
-                  {(projects || []).map(project => renderProjectItem(project))}
+                  {isLoadingProjects ? (
+                    // Show loading skeleton for projects
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <Box
+                        key={i}
+                        height="36px"
+                        bg="gray.100"
+                        borderRadius="md"
+                        animation="pulse 1.5s infinite"
+                      />
+                    ))
+                  ) : (
+                    activeProjects.map(project => renderProjectItem(project))
+                  )}
                 </VStack>
               </Box>
             </>
@@ -497,17 +572,6 @@ export default function Sidebar({
           </Box>
         )}
       </MotionFlex>
-
-      {/* Project Task Panel */}
-      <ProjectTaskPanel
-        isOpen={isTaskPanelOpen}
-        onClose={() => setIsTaskPanelOpen(false)}
-        project={selectedProject}
-        tasks={tasks}
-        onTaskClick={onTaskClick}
-        onTaskUpdate={onTaskUpdate}
-        onTaskCreate={onTaskCreate}
-      />
     </>
   )
 } 
