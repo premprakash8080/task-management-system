@@ -9,6 +9,11 @@ import {
   addMember,
   removeMember,
   updateProjectSettings,
+  createSection,
+  updateSection,
+  deleteSection,
+  reorderSections,
+  getProjectTasks,
 } from '../controllers/project.controller.js';
 
 const router = express.Router();
@@ -29,5 +34,14 @@ router.delete('/:projectId/members', removeMember);
 
 // Project settings
 router.patch('/:projectId/settings', updateProjectSettings);
+
+// Project tasks
+router.get('/:projectId/tasks', getProjectTasks);
+
+// Section management
+router.post('/:projectId/sections', createSection);
+router.patch('/:projectId/sections/:sectionId', updateSection);
+router.delete('/:projectId/sections/:sectionId', deleteSection);
+router.post('/:projectId/sections/reorder', reorderSections);
 
 export { router }; 

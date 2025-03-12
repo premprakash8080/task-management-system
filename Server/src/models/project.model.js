@@ -36,6 +36,33 @@ const projectSchema = new mongoose.Schema(
         default: 'member',
       },
     }],
+    sections: [{
+      _id: {
+        type: mongoose.Schema.Types.ObjectId,
+        auto: true,
+      },
+      title: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      order: {
+        type: Number,
+        required: true,
+      },
+      isArchived: {
+        type: Boolean,
+        default: false,
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+      updatedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
     status: {
       type: String,
       enum: ['active', 'archived', 'completed'],
@@ -76,5 +103,6 @@ const projectSchema = new mongoose.Schema(
 projectSchema.index({ ownerId: 1 });
 projectSchema.index({ 'members.userId': 1 });
 projectSchema.index({ status: 1 });
+projectSchema.index({ 'sections._id': 1 });
 
 export const Project = mongoose.model('Project', projectSchema); 
