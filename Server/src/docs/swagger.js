@@ -63,7 +63,7 @@ const schemas = {
   },
   Task: {
     type: 'object',
-    required: ['title', 'projectId'],
+    required: ['title', 'projectId', 'sectionId'],
     properties: {
       _id: {
         type: 'string',
@@ -79,32 +79,45 @@ const schemas = {
       },
       status: {
         type: 'string',
-        enum: ['TODO', 'IN_PROGRESS', 'COMPLETED'],
-        default: 'TODO'
+        enum: ['todo', 'in_progress', 'completed'],
+        default: 'todo'
       },
       priority: {
         type: 'string',
-        enum: ['LOW', 'MEDIUM', 'HIGH'],
-        default: 'MEDIUM'
+        enum: ['low', 'medium', 'high'],
+        default: 'medium'
       },
       dueDate: {
         type: 'string',
         format: 'date-time'
       },
-      assignedTo: {
-        type: 'string',
-        description: 'User ID of assignee'
-      },
       projectId: {
         type: 'string',
         description: 'Project ID this task belongs to'
+      },
+      sectionId: {
+        type: 'string',
+        description: 'Section ID this task belongs to'
+      },
+      parentTaskId: {
+        type: 'string',
+        description: 'Parent task ID for subtasks',
+        nullable: true
+      },
+      order: {
+        type: 'number',
+        description: 'Task order within its section'
+      },
+      assigneeId: {
+        type: 'string',
+        description: 'User ID of task assignee'
       },
       comments: {
         type: 'array',
         items: {
           type: 'object',
           properties: {
-            text: { type: 'string' },
+            content: { type: 'string' },
             userId: { type: 'string' },
             createdAt: {
               type: 'string',
@@ -112,24 +125,58 @@ const schemas = {
             }
           }
         }
+      },
+      subtasks: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            isCompleted: { type: 'boolean' },
+            order: { type: 'number' },
+            assigneeId: { type: 'string' },
+            createdAt: {
+              type: 'string',
+              format: 'date-time'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time'
+            }
+          }
+        }
+      },
+      isArchived: {
+        type: 'boolean',
+        default: false
       }
     }
   },
   Project: {
     type: 'object',
-    required: ['name', 'ownerId'],
+    required: ['title', 'ownerId'],
     properties: {
       _id: {
         type: 'string',
         description: 'Auto-generated project ID'
       },
-      name: {
+      title: {
         type: 'string',
-        description: 'Project name'
+        description: 'Project title'
       },
       description: {
         type: 'string',
         description: 'Project description'
+      },
+      color: {
+        type: 'string',
+        description: 'Project color',
+        example: '#4A90E2'
+      },
+      icon: {
+        type: 'string',
+        description: 'Project icon',
+        example: '📁'
       },
       ownerId: {
         type: 'string',
@@ -143,24 +190,65 @@ const schemas = {
             userId: { type: 'string' },
             role: {
               type: 'string',
-              enum: ['OWNER', 'ADMIN', 'MEMBER']
+              enum: ['owner', 'admin', 'member']
             }
           }
         }
       },
+      sections: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            _id: {
+              type: 'string',
+              description: 'Auto-generated section ID'
+            },
+            title: {
+              type: 'string',
+              description: 'Section title'
+            },
+            order: {
+              type: 'number',
+              description: 'Section order for sorting'
+            },
+            isArchived: {
+              type: 'boolean',
+              description: 'Whether the section is archived'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time'
+            }
+          }
+        }
+      },
+      status: {
+        type: 'string',
+        enum: ['active', 'archived', 'completed'],
+        default: 'active'
+      },
       settings: {
         type: 'object',
         properties: {
-          taskCategories: {
-            type: 'array',
-            items: { type: 'string' }
+          defaultView: {
+            type: 'string',
+            enum: ['list', 'board', 'calendar', 'files'],
+            default: 'board'
           },
-          defaultAssignee: { type: 'string' },
-          notificationSettings: {
-            type: 'object',
-            properties: {
-              emailNotifications: { type: 'boolean' },
-              pushNotifications: { type: 'boolean' }
+          taskStatuses: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                color: { type: 'string' },
+                order: { type: 'number' }
+              }
             }
           }
         }
@@ -1105,6 +1193,279 @@ const paths = {
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Project' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/projects/{projectId}/sections': {
+    post: {
+      summary: 'Create a new section in a project',
+      tags: ['Projects'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'projectId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Project ID'
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['title'],
+              properties: {
+                title: {
+                  type: 'string',
+                  example: 'Development Tasks'
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        201: {
+          description: 'Section created successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Project' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/projects/{projectId}/sections/{sectionId}': {
+    patch: {
+      summary: 'Update a section',
+      tags: ['Projects'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'projectId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Project ID'
+        },
+        {
+          in: 'path',
+          name: 'sectionId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Section ID'
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['title'],
+              properties: {
+                title: {
+                  type: 'string',
+                  example: 'Updated Section Title'
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        200: {
+          description: 'Section updated successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Project' }
+            }
+          }
+        }
+      }
+    },
+    delete: {
+      summary: 'Delete a section',
+      tags: ['Projects'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'projectId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Project ID'
+        },
+        {
+          in: 'path',
+          name: 'sectionId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Section ID'
+        }
+      ],
+      responses: {
+        200: {
+          description: 'Section deleted successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Project' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/projects/{projectId}/sections/reorder': {
+    post: {
+      summary: 'Reorder sections in a project',
+      tags: ['Projects'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'projectId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Project ID'
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['sectionIds'],
+              properties: {
+                sectionIds: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Array of section IDs in their new order',
+                  example: ['section1Id', 'section2Id', 'section3Id']
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        200: {
+          description: 'Sections reordered successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Project' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/projects/{projectId}/tasks': {
+    get: {
+      summary: 'Get all tasks for a project',
+      tags: ['Projects'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'path',
+          name: 'projectId',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Project ID'
+        },
+        {
+          in: 'query',
+          name: 'status',
+          schema: {
+            type: 'string',
+            enum: ['todo', 'in_progress', 'completed']
+          },
+          description: 'Filter tasks by status'
+        },
+        {
+          in: 'query',
+          name: 'priority',
+          schema: {
+            type: 'string',
+            enum: ['low', 'medium', 'high']
+          },
+          description: 'Filter tasks by priority'
+        },
+        {
+          in: 'query',
+          name: 'search',
+          schema: { type: 'string' },
+          description: 'Search tasks by title or description'
+        },
+        {
+          in: 'query',
+          name: 'sort',
+          schema: { type: 'string' },
+          description: 'Sort field (e.g., order, createdAt, updatedAt)',
+          default: 'order'
+        },
+        {
+          in: 'query',
+          name: 'isArchived',
+          schema: { 
+            type: 'boolean',
+            default: false
+          },
+          description: 'Include archived tasks'
+        }
+      ],
+      responses: {
+        200: {
+          description: 'List of project tasks',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  statusCode: {
+                    type: 'number',
+                    example: 200
+                  },
+                  data: {
+                    type: 'array',
+                    items: {
+                      $ref: '#/components/schemas/Task'
+                    }
+                  },
+                  message: {
+                    type: 'string',
+                    example: 'Project tasks fetched successfully'
+                  }
+                }
+              }
+            }
+          }
+        },
+        404: {
+          description: 'Project not found or access denied',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  statusCode: {
+                    type: 'number',
+                    example: 404
+                  },
+                  message: {
+                    type: 'string',
+                    example: 'Project not found or access denied'
+                  }
+                }
+              }
             }
           }
         }
