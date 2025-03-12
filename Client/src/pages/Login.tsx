@@ -9,40 +9,54 @@ import {
   Text,
   Link,
   useToast,
+  FormErrorMessage,
 } from '@chakra-ui/react'
 import { useState } from 'react'
 import { useNavigate, Link as RouterLink } from 'react-router-dom'
+import { useAuth } from '../store/AuthContext'
 
 const Login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
   const navigate = useNavigate()
   const toast = useToast()
+  const { login } = useAuth()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError('')
 
-    // Static credentials for demo
-    if (email === 'demo@example.com' && password === 'password123') {
-      // Simulate API call delay
-      setTimeout(() => {
-        localStorage.setItem('isAuthenticated', 'true')
-        toast({
-          title: 'Login successful',
-          status: 'success',
-          duration: 2000,
-        })
-        navigate('/')
-      }, 1000)
-    } else {
+    if (!email.trim() || !password.trim()) {
+      setError('Please fill in all fields')
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      await login(email, password)
       toast({
-        title: 'Invalid credentials',
-        description: 'Please use demo@example.com / password123',
-        status: 'error',
+        title: 'Login successful',
+        description: 'Welcome back!',
+        status: 'success',
         duration: 3000,
+        isClosable: true,
       })
+      // Navigation is handled in the login function
+    } catch (error: any) {
+      console.error('Login error:', error)
+      const errorMessage = error.message || 'An unexpected error occurred'
+      setError(errorMessage)
+      toast({
+        title: 'Login failed',
+        description: errorMessage,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      })
+    } finally {
       setIsLoading(false)
     }
   }
@@ -66,24 +80,27 @@ const Login = () => {
 
           <form onSubmit={handleLogin} style={{ width: '100%' }}>
             <VStack spacing={4} w="100%">
-              <FormControl isRequired>
+              <FormControl isRequired isInvalid={!!error}>
                 <FormLabel>Email</FormLabel>
                 <Input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
+                  disabled={isLoading}
                 />
               </FormControl>
 
-              <FormControl isRequired>
+              <FormControl isRequired isInvalid={!!error}>
                 <FormLabel>Password</FormLabel>
                 <Input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
+                  disabled={isLoading}
                 />
+                {error && <FormErrorMessage>{error}</FormErrorMessage>}
               </FormControl>
 
               <Button
@@ -92,13 +109,14 @@ const Login = () => {
                 size="lg"
                 width="100%"
                 isLoading={isLoading}
+                loadingText="Signing in..."
               >
                 Sign In
               </Button>
             </VStack>
           </form>
 
-          <Text align="center" w="100%">
+          <Text align="center" w="100%" color="gray.600">
             Don't have an account?{' '}
             <Link as={RouterLink} to="/signup" color="blue.500">
               Sign up

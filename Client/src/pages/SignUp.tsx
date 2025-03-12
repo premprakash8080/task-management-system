@@ -9,32 +9,63 @@ import {
   Text,
   Link,
   useToast,
+  FormErrorMessage,
 } from '@chakra-ui/react'
 import { useState } from 'react'
 import { useNavigate, Link as RouterLink } from 'react-router-dom'
+import { useAuth } from '../store/AuthContext'
 
 const SignUp = () => {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [formData, setFormData] = useState({
+    username: '',
+    fullName: '',
+    email: '',
+    password: '',
+  })
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
   const navigate = useNavigate()
   const toast = useToast()
+  const { signup } = useAuth()
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError('')
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await signup(
+        formData.username,
+        formData.email,
+        formData.password,
+        formData.fullName
+      )
       toast({
         title: 'Account created successfully',
-        description: 'Please login with your credentials',
+        description: 'Welcome to Task Management System',
         status: 'success',
         duration: 3000,
       })
-      navigate('/login')
-    }, 1000)
+      navigate('/')
+    } catch (error: any) {
+      setError(error.message || 'Registration failed. Please try again.')
+      toast({
+        title: 'Registration failed',
+        description: error.message || 'Please check your information and try again',
+        status: 'error',
+        duration: 3000,
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -56,34 +87,49 @@ const SignUp = () => {
 
           <form onSubmit={handleSignUp} style={{ width: '100%' }}>
             <VStack spacing={4} w="100%">
-              <FormControl isRequired>
+              <FormControl isRequired isInvalid={!!error}>
+                <FormLabel>Username</FormLabel>
+                <Input
+                  name="username"
+                  type="text"
+                  value={formData.username}
+                  onChange={handleChange}
+                  placeholder="Choose a username"
+                />
+              </FormControl>
+
+              <FormControl isRequired isInvalid={!!error}>
                 <FormLabel>Full Name</FormLabel>
                 <Input
+                  name="fullName"
                   type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={formData.fullName}
+                  onChange={handleChange}
                   placeholder="Enter your full name"
                 />
               </FormControl>
 
-              <FormControl isRequired>
+              <FormControl isRequired isInvalid={!!error}>
                 <FormLabel>Email</FormLabel>
                 <Input
+                  name="email"
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={formData.email}
+                  onChange={handleChange}
                   placeholder="Enter your email"
                 />
               </FormControl>
 
-              <FormControl isRequired>
+              <FormControl isRequired isInvalid={!!error}>
                 <FormLabel>Password</FormLabel>
                 <Input
+                  name="password"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={formData.password}
+                  onChange={handleChange}
                   placeholder="Create a password"
                 />
+                <FormErrorMessage>{error}</FormErrorMessage>
               </FormControl>
 
               <Button
