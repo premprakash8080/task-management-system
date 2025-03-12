@@ -1,166 +1,123 @@
 import {
-  Flex,
   Box,
   Text,
-  Button,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Checkbox,
+  IconButton,
   useColorModeValue,
-  Badge,
+  Checkbox,
+  Flex,
+  Avatar,
+  Tooltip,
   HStack,
-  Icon,
 } from '@chakra-ui/react'
-import { ChevronDownIcon } from '@chakra-ui/icons'
-import { AiOutlineCheck } from 'react-icons/ai'
-import { Task } from '../../../data/sampleData'
-import { sampleData } from '../../../data/sampleData'
+import { Task } from '../../../types/task'
+import { FiEdit2 } from 'react-icons/fi'
+import { format } from 'date-fns'
+import { memo } from 'react'
 
-interface TaskListItemProps {
+export interface TaskListItemProps {
   task: Task
-  onComplete?: (taskId: string) => void
-  onProjectChange?: (taskId: string, projectId: string) => void
-  onSectionChange?: (taskId: string, status: Task['status']) => void
-  onTaskClick?: (taskId: string) => void
+  onClick: () => void
+  onUpdate: (task: Task) => Promise<void>
+  onComplete: () => void
+  onProjectChange: (projectId: string) => void
+  onSectionChange: (sectionId: string) => void
+  projectName?: string
 }
 
-const TaskListItem = ({
+const TaskListItem = memo(({
   task,
+  onClick,
   onComplete,
-  onProjectChange,
-  onSectionChange,
-  onTaskClick,
+  projectName,
 }: TaskListItemProps) => {
-  const bgHover = useColorModeValue('gray.50', 'gray.700')
-  const borderColor = useColorModeValue('gray.200', 'gray.700')
-  const isCompleted = task.status === 'completed'
+  const bgColor = useColorModeValue('white', 'gray.800')
+  const borderColor = useColorModeValue('gray.200', 'gray.600')
+  const hoverBg = useColorModeValue('gray.50', 'gray.700')
 
-  const project = sampleData.projects.find(p => p.id === task.projectId)
-  const taskTags = task.tags || []
-  const tags = sampleData.tags.filter(t => taskTags.includes(t.id))
-
-  const handleClick = (e: React.MouseEvent) => {
-    // Prevent click event from bubbling up when clicking menu items or checkbox
-    if (
-      (e.target as HTMLElement).closest('.chakra-menu__menu-button') ||
-      (e.target as HTMLElement).closest('.chakra-checkbox')
-    ) {
-      return
+  const formatDate = (date: string | Date) => {
+    try {
+      return format(new Date(date), 'MMM dd, yyyy')
+    } catch (error) {
+      return ''
     }
-    onTaskClick?.(task.id)
   }
 
   return (
-    <Flex
-      px={3}
-      py={2}
-      borderBottom="1px solid"
+    <Box
+      borderWidth="1px"
       borderColor={borderColor}
-      alignItems="center"
-      bg={isCompleted ? 'gray.50' : 'white'}
-      _hover={{ bg: bgHover }}
-      transition="background 0.2s"
+      borderRadius="md"
+      mb={2}
+      _hover={{ bg: hoverBg }}
+      transition="background-color 0.2s"
       cursor="pointer"
-      onClick={handleClick}
+      onClick={onClick}
     >
-      <Box flex="0 0 40px">
-        <Checkbox
-          isChecked={isCompleted}
-          colorScheme="green"
-          onChange={() => onComplete?.(task.id)}
-          size="md"
-          variant="outline"
-        />
-      </Box>
-
-      <Box flex={2} px={2}>
-        <Menu>
-          <MenuButton
-            as={Button}
-            variant="ghost"
-            rightIcon={<ChevronDownIcon />}
-            textAlign="left"
-            px={2}
-            h="auto"
-            _hover={{ bg: 'transparent' }}
+      <Flex p={3} align="center">
+        <Box flex="0 0 40px" textAlign="center" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            isChecked={task.status === 'completed'}
+            onChange={onComplete}
+          />
+        </Box>
+        
+        <Box flex={2} px={2}>
+          <Text
+            fontSize="sm"
+            textDecoration={task.status === 'completed' ? 'line-through' : 'none'}
+            color={task.status === 'completed' ? 'gray.500' : 'inherit'}
+            noOfLines={1}
           >
-            <Text
-              fontSize="sm"
-              textDecoration={isCompleted ? 'line-through' : 'none'}
-              color={isCompleted ? 'gray.500' : 'inherit'}
-            >
-              {task.title}
+            {task.title}
+          </Text>
+        </Box>
+
+        <Box w="150px" px={2}>
+          <Text fontSize="sm" color="gray.600" noOfLines={1}>
+            {projectName || 'Untitled Project'}
+          </Text>
+        </Box>
+
+        <Box w="120px" px={2}>
+          {task.dueDate && (
+            <Text fontSize="sm" color="gray.600" noOfLines={1}>
+              {formatDate(task.dueDate)}
             </Text>
-          </MenuButton>
-          <MenuList>
-            <MenuItem onClick={() => onSectionChange?.(task.id, 'todo')}>
-              Move to To Do
-            </MenuItem>
-            <MenuItem onClick={() => onSectionChange?.(task.id, 'in-progress')}>
-              Move to In Progress
-            </MenuItem>
-            <MenuItem onClick={() => onSectionChange?.(task.id, 'completed')}>
-              Move to Completed
-            </MenuItem>
-          </MenuList>
-        </Menu>
-      </Box>
+          )}
+        </Box>
 
-      <Box flex={1} px={2}>
-        <Text fontSize="sm" color="gray.600">
-          {task.dueDate}
-        </Text>
-      </Box>
+        <Box w="120px" px={2}>
+          {task.assigneeId && typeof task.assigneeId === 'object' && (
+            <HStack spacing={2}>
+              <Avatar 
+                size="xs" 
+                name={task.assigneeId.email}
+                title={task.assigneeId.email}
+              />
+              <Text fontSize="sm" color="gray.600" noOfLines={1}>
+                {task.assigneeId.email.split('@')[0]}
+              </Text>
+            </HStack>
+          )}
+        </Box>
 
-      <Box w="200px" px={2}>
-        <Menu>
-          <MenuButton
-            as={Button}
+        <Box w="40px" textAlign="center" onClick={(e) => e.stopPropagation()}>
+          <IconButton
+            icon={<FiEdit2 />}
+            aria-label="Edit task"
             size="sm"
-            variant="outline"
-            width="full"
-            rightIcon={<ChevronDownIcon />}
-          >
-            <Text fontSize="sm" noOfLines={1}>
-              {project?.title || 'No Project'}
-            </Text>
-          </MenuButton>
-          <MenuList>
-            {sampleData.projects.map(proj => (
-              <MenuItem 
-                key={proj.id}
-                onClick={() => onProjectChange?.(task.id, proj.id)}
-              >
-                {proj.title}
-              </MenuItem>
-            ))}
-          </MenuList>
-        </Menu>
-      </Box>
-
-      <Box w="120px" px={2}>
-        {tags.length > 0 && (
-          <HStack spacing={1} overflow="hidden">
-            {tags.map(tag => (
-              <Badge
-                key={tag.id}
-                colorScheme={tag.colorScheme}
-                variant="subtle"
-                fontSize="xs"
-                textOverflow="ellipsis"
-                whiteSpace="nowrap"
-                overflow="hidden"
-              >
-                {tag.label}
-              </Badge>
-            ))}
-          </HStack>
-        )}
-      </Box>
-    </Flex>
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick();
+            }}
+          />
+        </Box>
+      </Flex>
+    </Box>
   )
-}
+})
+
+TaskListItem.displayName = 'TaskListItem'
 
 export default TaskListItem 

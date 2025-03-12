@@ -1,139 +1,52 @@
-import {
-  Flex,
-  Box,
-  Input,
-  Button,
-  useColorModeValue,
-  HStack,
-  IconButton,
-  Collapse,
-} from '@chakra-ui/react'
-import { useState, useRef, useEffect } from 'react'
-import { AiOutlinePlus } from 'react-icons/ai'
-import { Task } from '../../../data/sampleData'
+import { Box, Input, Button, HStack, useColorModeValue } from '@chakra-ui/react'
+import { useState, memo } from 'react'
 
-interface TaskListNewItemProps {
-  onTaskCreate: (task: Partial<Task>) => void
-  isCreating: boolean
-  onStartCreating: () => void
-  onCancelCreating: () => void
+export interface TaskListNewItemProps {
+  onSubmit: (title: string) => void
+  onCancel: () => void
 }
 
-const TaskListNewItem = ({
-  onTaskCreate,
-  isCreating,
-  onStartCreating,
-  onCancelCreating,
-}: TaskListNewItemProps) => {
-  const [taskName, setTaskName] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
-  const borderColor = useColorModeValue('gray.200', 'gray.700')
-  const bgHover = useColorModeValue('gray.50', 'gray.700')
-  const placeholderColor = useColorModeValue('gray.500', 'gray.400')
-
-  useEffect(() => {
-    if (isCreating && inputRef.current) {
-      inputRef.current.focus()
-    }
-  }, [isCreating])
+const TaskListNewItem = memo(({ onSubmit, onCancel }: TaskListNewItemProps) => {
+  const [title, setTitle] = useState('')
+  const borderColor = useColorModeValue('gray.200', 'gray.600')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (taskName.trim()) {
-      onTaskCreate({
-        title: taskName.trim(),
-      })
-      setTaskName('')
+    if (title.trim()) {
+      onSubmit(title.trim())
+      setTitle('')
     }
   }
 
-  if (!isCreating) {
-    return (
-      <Flex
-        px={4}
-        py={2}
-        borderBottom="1px solid"
-        borderColor={borderColor}
-        alignItems="center"
-        _hover={{ bg: bgHover }}
-        transition="all 0.2s"
-        cursor="pointer"
-        onClick={onStartCreating}
-        role="button"
-        aria-label="Add new task"
-      >
-        <IconButton
-          icon={<AiOutlinePlus />}
-          aria-label="Add task"
-          size="sm"
-          variant="ghost"
-          colorScheme="gray"
-          mr={2}
-        />
-        <Box color={placeholderColor}>Add new task...</Box>
-      </Flex>
-    )
-  }
-
   return (
-    <Collapse in={isCreating} animateOpacity>
-      <form onSubmit={handleSubmit}>
-        <Flex
-          px={4}
-          py={2}
-          borderBottom="1px solid"
-          borderColor={borderColor}
-          alignItems="center"
-          bg={bgHover}
-          transition="all 0.2s"
-        >
-          <IconButton
-            icon={<AiOutlinePlus />}
-            aria-label="Add task"
-            size="sm"
-            variant="ghost"
-            colorScheme="gray"
-            mr={2}
-          />
-          <Box flex={1} pr={4}>
-            <Input
-              ref={inputRef}
-              value={taskName}
-              onChange={(e) => setTaskName(e.target.value)}
-              placeholder="What needs to be done?"
-              variant="unstyled"
-              size="sm"
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  onCancelCreating()
-                }
-              }}
-            />
-          </Box>
-          <HStack spacing={2}>
-            <Button
-              size="sm"
-              colorScheme="blue"
-              type="submit"
-              isDisabled={!taskName.trim()}
-            >
-              Add Task
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setTaskName('')
-                onCancelCreating()
-              }}
-            >
-              Cancel
-            </Button>
-          </HStack>
-        </Flex>
-      </form>
-    </Collapse>
+    <Box
+      as="form"
+      onSubmit={handleSubmit}
+      borderWidth="1px"
+      borderColor={borderColor}
+      borderRadius="md"
+      p={3}
+      mb={2}
+    >
+      <HStack spacing={2}>
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Enter task title"
+          size="sm"
+          autoFocus
+        />
+        <Button type="submit" size="sm" colorScheme="blue" isDisabled={!title.trim()}>
+          Add
+        </Button>
+        <Button size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </HStack>
+    </Box>
   )
-}
+})
+
+TaskListNewItem.displayName = 'TaskListNewItem'
 
 export default TaskListNewItem 

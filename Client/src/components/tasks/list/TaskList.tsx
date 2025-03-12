@@ -1,177 +1,205 @@
-import { VStack, Box, useColorModeValue } from '@chakra-ui/react'
-import TaskListHeader from './TaskListHeader'
+import { Box, Input, VStack, useToast } from '@chakra-ui/react'
+import { Task, CreateTaskDto } from '../../../types/task'
+import { ProjectSection } from '../../../types/project'
 import TaskListItem from './TaskListItem'
-import TaskListNewItem from './TaskListNewItem'
+import TaskListHeader from './TaskListHeader'
 import TaskListSectionHeader from './TaskListSectionHeader'
-import { Task } from '../../../data/sampleData'
-import { useState, useMemo } from 'react'
+import { memo, useState } from 'react'
+import { DndProvider } from 'react-dnd'
+import { HTML5Backend } from 'react-dnd-html5-backend'
 
-interface TaskListProps {
+export interface TaskListProps {
   tasks: Task[]
+  sections: ProjectSection[]
   onTaskClick: (taskId: string) => void
-  onTaskUpdate: (task: Task) => void
-  onTaskCreate: (task: Partial<Task>) => void
-  onSectionUpdate?: (oldName: string, newName: string) => void
+  onTaskUpdate: (task: Task) => Promise<void>
+  onTaskCreate: (task: CreateTaskDto) => Promise<void>
+  onTaskComplete: (taskId: string) => void
+  onTaskProjectChange: (taskId: string, projectId: string) => void
+  onTaskSectionChange: (taskId: string, sectionId: string) => void
+  onSectionUpdate: (sectionId: string, title: string) => Promise<void>
+  onSectionCreate: (title: string) => Promise<void>
+  onSectionReorder: (sectionIds: string[]) => Promise<void>
+  projectId: string
 }
 
-interface SectionState {
-  [key: string]: {
-    isExpanded: boolean;
-    displayName: string;
-  };
-}
-
-const DEFAULT_SECTIONS = {
-  'todo': { isExpanded: true, displayName: 'To Do' },
-  'in-progress': { isExpanded: true, displayName: 'In Progress' },
-  'completed': { isExpanded: true, displayName: 'Completed' }
-}
-
-const TaskList = ({
+const TaskList = memo(({
   tasks,
+  sections,
   onTaskClick,
   onTaskUpdate,
   onTaskCreate,
-  onSectionUpdate
+  onTaskComplete,
+  onTaskProjectChange,
+  onTaskSectionChange,
+  onSectionUpdate,
+  onSectionCreate,
+  onSectionReorder,
+  projectId
 }: TaskListProps) => {
-  const [sections, setSections] = useState<SectionState>(DEFAULT_SECTIONS)
-  const [creatingInSection, setCreatingInSection] = useState<string | null>(null)
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(sections.map(s => s.id)))
+  const [newTaskInputs, setNewTaskInputs] = useState<{ [key: string]: string }>({})
+  const toast = useToast()
 
-  const borderColor = useColorModeValue('gray.200', 'gray.700')
+  const handleCreateTask = async (sectionId: string | null, title: string) => {
+    if (!title.trim() || !projectId) return
 
-  // Group tasks by section
-  const groupedTasks = useMemo(() => {
-    const groups: { [key: string]: Task[] } = {
-      'todo': [],
-      'in-progress': [],
-      'completed': []
-    }
-    
-    tasks.forEach(task => {
-      if (groups[task.status]) {
-        groups[task.status].push(task)
-      }
-    })
-    
-    return groups
-  }, [tasks])
-
-  const handleTaskComplete = (taskId: string) => {
-    const task = tasks.find(t => t.id === taskId)
-    if (task) {
-      onTaskUpdate({
-        ...task,
-        status: task.status === 'completed' ? 'todo' : 'completed',
-      })
-    }
-  }
-
-  const handleProjectChange = (taskId: string, projectId: string) => {
-    const task = tasks.find(t => t.id === taskId)
-    if (task) {
-      onTaskUpdate({
-        ...task,
+    try {
+      const newTask: CreateTaskDto = {
+        title: title.trim(),
+        description: '',
+        status: 'todo',
+        priority: 'medium',
         projectId,
+        sectionId: sectionId || null // Explicitly set to null for unassigned tasks
+      }
+
+      await onTaskCreate(newTask)
+      setNewTaskInputs(prev => ({ ...prev, [sectionId || 'unassigned']: '' }))
+    } catch (error: any) {
+      console.error('Task creation error:', error);
+      toast({
+        title: 'Error creating task',
+        description: error.response?.data?.message || 'Failed to create task. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
       })
     }
   }
 
-  const handleSectionChange = (taskId: string, status: Task['status']) => {
-    const task = tasks.find(t => t.id === taskId)
-    if (task) {
-      onTaskUpdate({
-        ...task,
-        status,
-      })
-    }
+  const handleSectionMove = (dragIndex: number, hoverIndex: number) => {
+    const reorderedSections = [...sections]
+    const [movedSection] = reorderedSections.splice(dragIndex, 1)
+    reorderedSections.splice(hoverIndex, 0, movedSection)
+    onSectionReorder(reorderedSections.map(s => s.id))
   }
 
-  const toggleSection = (section: string) => {
-    setSections(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        isExpanded: !prev[section].isExpanded
+  const handleSectionToggle = (sectionId: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev)
+      if (next.has(sectionId)) {
+        next.delete(sectionId)
+      } else {
+        next.add(sectionId)
       }
-    }))
-  }
-
-  const handleSectionNameChange = (section: string, newName: string) => {
-    setSections(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        displayName: newName
-      }
-    }))
-    onSectionUpdate?.(section, newName)
-  }
-
-  const handleCreateInSection = (section: string, taskName: string) => {
-    onTaskCreate({
-      title: taskName,
-      status: section as Task['status'],
-      description: '',
-      tags: [],
-      attachments: [],
-      comments: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      return next
     })
-    setCreatingInSection(null)
   }
 
-  const renderSection = (section: string) => {
-    const tasks = groupedTasks[section] || []
-    const { isExpanded, displayName } = sections[section]
-
+  const renderSection = (section: ProjectSection, index: number) => {
+    const sectionTasks = tasks.filter(task => task.sectionId === section.id)
+    const isExpanded = expandedSections.has(section.id)
+    
     return (
-      <Box key={section} borderBottom="1px solid" borderColor={borderColor}>
+      <Box key={section.id} mb={4}>
         <TaskListSectionHeader
-          title={displayName}
-          count={tasks.length}
+          title={section.title}
+          count={sectionTasks.length}
           isExpanded={isExpanded}
-          onToggle={() => toggleSection(section)}
-          onSectionNameChange={(newName) => handleSectionNameChange(section, newName)}
+          sectionId={section.id}
+          index={index}
+          onToggle={() => handleSectionToggle(section.id)}
+          onSectionNameChange={(newTitle) => onSectionUpdate(section.id, newTitle)}
+          onSectionMove={handleSectionMove}
         />
-        
-        <Box
-          style={{
-            maxHeight: isExpanded ? '2000px' : '0',
-            overflow: 'hidden',
-            transition: 'max-height 0.3s ease-in-out, opacity 0.2s ease-in-out',
-            opacity: isExpanded ? 1 : 0
-          }}
-        >
-          {tasks.map(task => (
-            <TaskListItem
-              key={task.id}
-              task={task}
-              onComplete={handleTaskComplete}
-              onProjectChange={handleProjectChange}
-              onSectionChange={handleSectionChange}
-              onTaskClick={onTaskClick}
+        {isExpanded && (
+          <VStack spacing={2} mt={2} pl={10}>
+            {sectionTasks.map(task => (
+              <TaskListItem
+                key={task._id}
+                task={task}
+                onClick={() => onTaskClick(task._id)}
+                onUpdate={onTaskUpdate}
+                onComplete={() => onTaskComplete(task._id)}
+                onProjectChange={(projectId) => onTaskProjectChange(task._id, projectId)}
+                onSectionChange={(sectionId) => onTaskSectionChange(task._id, sectionId)}
+              />
+            ))}
+            <Input
+              placeholder="Press Enter to add a new task"
+              size="sm"
+              value={newTaskInputs[section.id] || ''}
+              onChange={(e) => setNewTaskInputs(prev => ({ ...prev, [section.id]: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleCreateTask(section.id, newTaskInputs[section.id] || '')
+                }
+              }}
+              _placeholder={{ color: 'gray.500' }}
+              bg="white"
+              _hover={{ bg: 'gray.50' }}
+              _focus={{ bg: 'white', borderColor: 'blue.500' }}
             />
-          ))}
-          <TaskListNewItem
-            onTaskCreate={(task) => handleCreateInSection(section, task.title!)}
-            isCreating={creatingInSection === section}
-            onStartCreating={() => setCreatingInSection(section)}
-            onCancelCreating={() => setCreatingInSection(null)}
-          />
-        </Box>
+          </VStack>
+        )}
       </Box>
     )
   }
 
+  const unassignedTasks = tasks.filter(task => !task.sectionId)
+
   return (
-    <VStack align="stretch" spacing={0}>
-      <TaskListHeader />
-      {renderSection('todo')}
-      {renderSection('in-progress')}
-      {renderSection('completed')}
-    </VStack>
+    <DndProvider backend={HTML5Backend}>
+      <Box p={4}>
+        <TaskListHeader onAddSection={() => {
+          const title = window.prompt('Enter section name:')
+          if (title) onSectionCreate(title)
+        }} />
+        
+        <VStack spacing={4} align="stretch">
+          {sections.map((section, index) => renderSection(section, index))}
+          
+          {/* Unassigned Tasks Section */}
+          {unassignedTasks.length > 0 && (
+            <Box mt={4}>
+              <TaskListSectionHeader
+                title="Unassigned Tasks"
+                count={unassignedTasks.length}
+                isExpanded={true}
+                sectionId="unassigned"
+                index={-1}
+                onToggle={() => {}}
+                onSectionNameChange={() => {}}
+                onSectionMove={() => {}}
+              />
+              <VStack spacing={2} mt={2} pl={10}>
+                {unassignedTasks.map(task => (
+                  <TaskListItem
+                    key={task._id}
+                    task={task}
+                    onClick={() => onTaskClick(task._id)}
+                    onUpdate={onTaskUpdate}
+                    onComplete={() => onTaskComplete(task._id)}
+                    onProjectChange={(projectId) => onTaskProjectChange(task._id, projectId)}
+                    onSectionChange={(sectionId) => onTaskSectionChange(task._id, sectionId)}
+                    projectName={task.projectName}
+                  />
+                ))}
+                <Input
+                  placeholder="Press Enter to add a new task"
+                  size="sm"
+                  value={newTaskInputs['unassigned'] || ''}
+                  onChange={(e) => setNewTaskInputs(prev => ({ ...prev, 'unassigned': e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleCreateTask(null, newTaskInputs['unassigned'] || '')
+                    }
+                  }}
+                  _placeholder={{ color: 'gray.500' }}
+                  bg="white"
+                  _hover={{ bg: 'gray.50' }}
+                  _focus={{ bg: 'white', borderColor: 'blue.500' }}
+                />
+              </VStack>
+            </Box>
+          )}
+        </VStack>
+      </Box>
+    </DndProvider>
   )
-}
+})
+
+TaskList.displayName = 'TaskList'
 
 export default TaskList 

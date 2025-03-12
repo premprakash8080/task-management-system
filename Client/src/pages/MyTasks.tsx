@@ -6,6 +6,8 @@ import { TasksProvider, useTasksContext } from '../components/tasks/TasksProvide
 import { sampleData } from '../data/sampleData'
 import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { PageLayout } from '../components/layout/PageLayout'
+import { Task } from '../data/sampleData'
 
 const TasksContent = () => {
   const location = useLocation()
@@ -102,8 +104,10 @@ export default function MyTasks() {
   const initialTasks = sampleData.tasks
   
   return (
-    <TasksProvider initialTasks={initialTasks}>
-      <TasksContent />
-    </TasksProvider>
+    <PageLayout>
+      <TasksProvider initialTasks={initialTasks}>
+        <TasksContent />
+      </TasksProvider>
+    </PageLayout>
   )
 } 

@@ -10,6 +10,7 @@ import MyTasks from '../../pages/MyTasks'
 import Inbox from '../../pages/Inbox'
 import Portfolios from '../../pages/Portfolios'
 import Goals from '../../pages/Goals'
+import ProjectTasks from '../../pages/ProjectTasks'
 import { useState, useEffect } from 'react'
 import { pageConfigs } from '../../config/pageConfig'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -36,32 +37,46 @@ export default function DashboardLayout() {
   }
 
   return (
-    <Flex h="100vh" overflow="hidden">
+    <Flex w="100vw" h="100vh" overflow="hidden" position="fixed" top={0} left={0}>
       {/* Sidebar */}
-      <Sidebar 
-        onCollapse={(collapsed: boolean) => setIsSidebarCollapsed(collapsed)} 
-      />
+      <Box
+        position="fixed"
+        left={0}
+        top={0}
+        h="100vh"
+        w={isSidebarCollapsed ? "60px" : "240px"}
+        transition="width 0.2s"
+        zIndex={2}
+      >
+        <Sidebar 
+          onCollapse={(collapsed: boolean) => setIsSidebarCollapsed(collapsed)} 
+        />
+      </Box>
 
       {/* Main Content */}
       <MotionFlex
-        flex={1}
+        position="absolute"
+        left={isSidebarCollapsed ? "60px" : "240px"}
+        top={0}
+        right={0}
+        bottom={0}
         direction="column"
-        initial={false}
-        animate={{
-          marginLeft: isSidebarCollapsed ? '60px' : '240px',
-          width: `calc(100% - ${isSidebarCollapsed ? '60px' : '240px'})`
-        }}
         transition={{
           duration: 0.2,
           ease: "easeInOut"
         }}
+        bg="gray.50"
       >
         {/* Header */}
         <Box 
           h="72px" 
+          w="100%"
           borderBottom="1px" 
           borderColor="gray.200"
           bg="white"
+          position="sticky"
+          top={0}
+          zIndex={1}
         >
           <Header
             currentTab={currentTab}
@@ -74,8 +89,9 @@ export default function DashboardLayout() {
         {/* Page Content */}
         <Box 
           flex={1} 
+          w="100%"
           overflowY="auto"
-          bg="gray.50"
+          position="relative"
         >
           <AnimatePresence mode="wait">
             <Routes>
@@ -95,6 +111,7 @@ export default function DashboardLayout() {
               <Route path="/inbox" element={<Inbox />} />
               <Route path="/portfolios" element={<Portfolios />} />
               <Route path="/goals" element={<Goals />} />
+              <Route path="/projects/:projectId/tasks" element={<ProjectTasks />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AnimatePresence>

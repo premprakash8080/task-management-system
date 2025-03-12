@@ -5,24 +5,34 @@ import {
   Input,
   useColorModeValue,
   IconButton,
+  Box,
+  Badge,
 } from '@chakra-ui/react'
 import { ChevronDownIcon, ChevronRightIcon } from '@chakra-ui/icons'
 import { useState, useRef, useEffect } from 'react'
+import { DragHandleIcon } from '@chakra-ui/icons'
+import { useDrag, useDrop } from 'react-dnd'
 
 interface TaskListSectionHeaderProps {
   title: string
   count: number
   isExpanded: boolean
+  sectionId: string
+  index: number
   onToggle: () => void
   onSectionNameChange: (newName: string) => void
+  onSectionMove: (dragIndex: number, hoverIndex: number) => void
 }
 
 const TaskListSectionHeader = ({
   title,
   count,
   isExpanded,
+  sectionId,
+  index,
   onToggle,
   onSectionNameChange,
+  onSectionMove,
 }: TaskListSectionHeaderProps) => {
   const [isEditing, setIsEditing] = useState(false)
   const [editedTitle, setEditedTitle] = useState(title)
@@ -31,6 +41,27 @@ const TaskListSectionHeader = ({
   const sectionBg = useColorModeValue('gray.50', 'gray.700')
   const sectionHoverBg = useColorModeValue('gray.100', 'gray.600')
   const textColor = useColorModeValue('gray.700', 'white')
+  const dragHandleColor = useColorModeValue('gray.400', 'gray.500')
+  const countBgColor = useColorModeValue('gray.200', 'gray.600')
+
+  const [{ isDragging }, drag, dragPreview] = useDrag({
+    type: 'SECTION',
+    item: { type: 'SECTION', id: sectionId, index },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  })
+
+  const [, drop] = useDrop({
+    accept: 'SECTION',
+    hover(item: { type: string; id: string; index: number }) {
+      if (item.index === index) {
+        return
+      }
+      onSectionMove(item.index, index)
+      item.index = index
+    },
+  })
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -66,6 +97,7 @@ const TaskListSectionHeader = ({
 
   return (
     <Flex
+      ref={(node) => drag(drop(node))}
       py={2}
       px={4}
       bg={sectionBg}
@@ -76,7 +108,22 @@ const TaskListSectionHeader = ({
       transition="all 0.2s"
       role="button"
       aria-expanded={isExpanded}
+      opacity={isDragging ? 0.5 : 1}
+      borderRadius="md"
+      boxShadow="sm"
+      position="relative"
     >
+      <Icon
+        as={DragHandleIcon}
+        mr={2}
+        color={dragHandleColor}
+        cursor="grab"
+        _active={{ cursor: 'grabbing' }}
+        onClick={(e) => e.stopPropagation()}
+        opacity={0.6}
+        _hover={{ opacity: 1 }}
+      />
+      
       <IconButton
         icon={<Icon as={isExpanded ? ChevronDownIcon : ChevronRightIcon} />}
         aria-label={isExpanded ? "Collapse section" : "Expand section"}
@@ -103,7 +150,7 @@ const TaskListSectionHeader = ({
           variant="filled"
           bg="white"
           _hover={{ bg: 'white' }}
-          _focus={{ bg: 'white' }}
+          _focus={{ bg: 'white', borderColor: 'blue.500' }}
           autoComplete="off"
         />
       ) : (
@@ -113,18 +160,24 @@ const TaskListSectionHeader = ({
           onClick={handleEditStart}
           _hover={{ textDecoration: 'underline' }}
           cursor="text"
+          flex={1}
         >
           {title}
         </Text>
       )}
       
-      <Text
+      <Badge
         ml={2}
-        color="gray.500"
-        fontSize="sm"
+        px={2}
+        py={1}
+        borderRadius="full"
+        bg={countBgColor}
+        color={textColor}
+        fontSize="xs"
+        fontWeight="medium"
       >
-        ({count})
-      </Text>
+        {count}
+      </Badge>
     </Flex>
   )
 }

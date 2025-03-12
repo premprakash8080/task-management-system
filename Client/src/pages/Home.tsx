@@ -19,8 +19,11 @@ import TasksDueSoon from '../components/tasks/TasksDueSoon'
 import TaskDetails from '../components/tasks/TaskDetails'
 import { useState } from 'react'
 import { Task } from '../data/sampleData'
+import { PageLayout } from '../components/layout/PageLayout'
+import { useAuth } from '../store/AuthContext'
 
 export default function Home() {
+  const { user } = useAuth()
   const { isOpen, onOpen, onClose } = useDisclosure()
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
@@ -78,9 +81,9 @@ export default function Home() {
   }
 
   return (
-    <Box p={6}>
+    <PageLayout>
       <Heading fontSize="xl" mb={6}>
-        Welcome Back, {sampleData.users[0].name}!
+        Welcome Back, {user?.fullName || 'User'}!
       </Heading>
       
       {/* Overview Stats */}
@@ -214,6 +217,6 @@ export default function Home() {
           }}
         />
       )}
-    </Box>
+    </PageLayout>
   )
 } 

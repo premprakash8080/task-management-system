@@ -1,108 +1,72 @@
-import { Task, TaskFilters, TaskSortOptions } from '../../types/task'
-import { mockTasksApi } from '../mockApi'
+import { api } from './api'
+import { Task, CreateTaskDto } from '../../types/task'
 
-const isDevelopment = import.meta.env.MODE === 'development'
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
+export const tasksApi = {
+  getTasks: async (params?: {
+    status?: string
+    priority?: string
+    search?: string
+    sort?: string
+    isArchived?: boolean
+  }): Promise<Task[]> => {
+    const response = await api.get('/tasks', { params })
+    return response.data.data
+  },
 
-export const TasksAPI = isDevelopment ? mockTasksApi : {
-  // Fetch tasks with filtering and sorting
-  fetchTasks: async (filters?: TaskFilters, sort?: TaskSortOptions): Promise<Task[]> => {
+  getTaskById: async (taskId: string): Promise<Task> => {
+    const response = await api.get(`/tasks/${taskId}`)
+    return response.data.data
+  },
+
+  createTask: async (task: CreateTaskDto): Promise<Task> => {
     try {
-      const queryParams = new URLSearchParams()
-      if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
-          if (value) queryParams.append(key, JSON.stringify(value))
-        })
-      }
-      if (sort) {
-        queryParams.append('sort', JSON.stringify(sort))
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/tasks?${queryParams}`)
-      if (!response.ok) throw new Error('Failed to fetch tasks')
-      return response.json()
-    } catch (error) {
-      console.error('Error fetching tasks:', error)
-      throw error
+      const response = await api.post('/tasks', task)
+      return response.data.data
+    } catch (error: any) {
+      console.error('API Error:', error.response?.data || error);
+      throw error;
     }
   },
 
-  // Fetch a single task by ID
-  fetchTaskById: async (taskId: string): Promise<Task> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`)
-      if (!response.ok) throw new Error('Failed to fetch task')
-      return response.json()
-    } catch (error) {
-      console.error('Error fetching task:', error)
-      throw error
-    }
-  },
-
-  // Create a new task
-  createTask: async (task: Partial<Task>): Promise<Task> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/tasks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(task),
-      })
-      if (!response.ok) throw new Error('Failed to create task')
-      return response.json()
-    } catch (error) {
-      console.error('Error creating task:', error)
-      throw error
-    }
-  },
-
-  // Update an existing task
   updateTask: async (taskId: string, updates: Partial<Task>): Promise<Task> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updates),
-      })
-      if (!response.ok) throw new Error('Failed to update task')
-      return response.json()
-    } catch (error) {
-      console.error('Error updating task:', error)
-      throw error
-    }
+    const response = await api.patch(`/tasks/${taskId}`, updates)
+    return response.data.data
   },
 
-  // Delete a task
   deleteTask: async (taskId: string): Promise<void> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
-        method: 'DELETE',
-      })
-      if (!response.ok) throw new Error('Failed to delete task')
-    } catch (error) {
-      console.error('Error deleting task:', error)
-      throw error
-    }
+    await api.delete(`/tasks/${taskId}`)
   },
 
-  // Batch update tasks
-  batchUpdateTasks: async (updates: { id: string; changes: Partial<Task> }[]): Promise<Task[]> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/tasks/batch`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updates),
-      })
-      if (!response.ok) throw new Error('Failed to batch update tasks')
-      return response.json()
-    } catch (error) {
-      console.error('Error batch updating tasks:', error)
-      throw error
-    }
+  addComment: async (taskId: string, content: string): Promise<Task> => {
+    const response = await api.post(`/tasks/${taskId}/comments`, { content })
+    return response.data.data
   },
-} 
+
+  addAttachment: async (taskId: string, file: File): Promise<Task> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await api.post(`/tasks/${taskId}/attachments`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data.data
+  },
+
+  removeAttachment: async (taskId: string, attachmentId: string): Promise<Task> => {
+    const response = await api.delete(`/tasks/${taskId}/attachments/${attachmentId}`)
+    return response.data.data
+  },
+
+  updateSubtask: async (taskId: string, subtaskId: string, updates: { title?: string; isCompleted?: boolean }): Promise<Task> => {
+    const response = await api.patch(`/tasks/${taskId}/subtasks/${subtaskId}`, updates)
+    return response.data.data
+  },
+
+  reorderSubtasks: async (taskId: string, subtaskIds: string[]): Promise<Task> => {
+    const response = await api.post(`/tasks/${taskId}/subtasks/reorder`, { subtaskIds })
+    return response.data.data
+  }
+}
+
+export default tasksApi 

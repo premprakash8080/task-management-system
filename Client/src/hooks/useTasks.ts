@@ -44,21 +44,21 @@ export const useTasks = (filters?: TaskFilters, sort?: TaskSortOptions) => {
     createTask: createTaskMutation.mutateAsync,
     updateTask: updateTaskMutation.mutateAsync,
     deleteTask: deleteTaskMutation.mutateAsync,
-    isCreating: createTaskMutation.isLoading,
-    isUpdating: updateTaskMutation.isLoading,
-    isDeleting: deleteTaskMutation.isLoading,
+    isCreating: createTaskMutation.isPending,
+    isUpdating: updateTaskMutation.isPending,
+    isDeleting: deleteTaskMutation.isPending,
   }
 }
 
 // Hook for single task operations
 export const useTask = (taskId: string) => {
   const queryClient = useQueryClient()
-  const { fetchTaskById, updateTask, deleteTask } = useTaskContext()
+  const { getTaskById, updateTask, deleteTask } = useTaskContext()
 
   // Fetch single task
   const { data: task, isLoading, error } = useQuery({
     queryKey: ['task', taskId],
-    queryFn: () => fetchTaskById(taskId),
+    queryFn: () => getTaskById(taskId),
     enabled: !!taskId,
   })
 
@@ -85,7 +85,7 @@ export const useTask = (taskId: string) => {
     error,
     updateTask: updateTaskMutation.mutateAsync,
     deleteTask: deleteTaskMutation.mutateAsync,
-    isUpdating: updateTaskMutation.isLoading,
-    isDeleting: deleteTaskMutation.isLoading,
+    isUpdating: updateTaskMutation.isPending,
+    isDeleting: deleteTaskMutation.isPending,
   }
 } 

@@ -1,4 +1,4 @@
-import { ChevronDownIcon } from '@chakra-ui/icons'
+import { ChevronDownIcon, AddIcon } from '@chakra-ui/icons'
 import {
   HStack,
   Tabs,
@@ -16,9 +16,10 @@ import { BiHorizontalCenter } from 'react-icons/bi'
 interface TasksHeaderLeftProps {
   currentView: 'list' | 'board' | 'calendar' | 'files'
   onViewChange: (view: 'list' | 'board' | 'calendar' | 'files') => void
+  onAddSection: () => void
 }
 
-const TasksHeaderLeft = ({ currentView, onViewChange }: TasksHeaderLeftProps) => {
+const TasksHeaderLeft = ({ currentView, onViewChange, onAddSection }: TasksHeaderLeftProps) => {
   const getViewIndex = (view: string) => {
     const views = ['list', 'board', 'calendar', 'files']
     return views.indexOf(view)
@@ -30,18 +31,18 @@ const TasksHeaderLeft = ({ currentView, onViewChange }: TasksHeaderLeftProps) =>
   }
 
   return (
-    <HStack spacing={0}>
-      <Button>Add Task</Button>
-      <Divider orientation="vertical" />
-      <Menu>
-        <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
-        
-        </MenuButton>
-        <MenuList>
-          <MenuItem>Add Section</MenuItem>
-        </MenuList>
-      </Menu>
+    <HStack spacing={4}>
+      <Button leftIcon={<AddIcon />} colorScheme="blue">
+        Add Task
+      </Button>
       
+      <Button
+        leftIcon={<BiHorizontalCenter />}
+        variant="outline"
+        onClick={onAddSection}
+      >
+        Add Section
+      </Button>
     </HStack>
   )
 }

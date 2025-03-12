@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react'
 import { Task, TaskFilters, TaskSortOptions } from '../types/task'
-import { TasksAPI } from '../services/api/tasks'
+import tasksApi from '../services/api/tasks'
 
 interface TaskState {
   tasks: Task[]
@@ -61,6 +61,7 @@ const taskReducer = (state: TaskState, action: TaskAction): TaskState => {
 
 interface TaskContextValue extends TaskState {
   fetchTasks: () => Promise<void>
+  getTaskById: (taskId: string) => Promise<Task>
   createTask: (task: Partial<Task>) => Promise<Task>
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<Task>
   deleteTask: (taskId: string) => Promise<void>
@@ -76,7 +77,7 @@ export const TaskProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const fetchTasks = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: true })
     try {
-      const tasks = await TasksAPI.fetchTasks(state.filters, state.sort)
+      const tasks = await tasksApi.getTasks()
       dispatch({ type: 'SET_TASKS', payload: tasks })
       dispatch({ type: 'SET_ERROR', payload: null })
     } catch (error) {
@@ -84,12 +85,26 @@ export const TaskProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false })
     }
-  }, [state.filters, state.sort])
+  }, [])
+
+  const getTaskById = useCallback(async (taskId: string) => {
+    dispatch({ type: 'SET_LOADING', payload: true })
+    try {
+      const task = await tasksApi.getTaskById(taskId)
+      dispatch({ type: 'SET_ERROR', payload: null })
+      return task
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to fetch task' })
+      throw error
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false })
+    }
+  }, [])
 
   const createTask = useCallback(async (task: Partial<Task>) => {
     dispatch({ type: 'SET_LOADING', payload: true })
     try {
-      const newTask = await TasksAPI.createTask(task)
+      const newTask = await tasksApi.createTask(task)
       dispatch({ type: 'ADD_TASK', payload: newTask })
       dispatch({ type: 'SET_ERROR', payload: null })
       return newTask
@@ -104,7 +119,7 @@ export const TaskProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateTask = useCallback(async (taskId: string, updates: Partial<Task>) => {
     dispatch({ type: 'SET_LOADING', payload: true })
     try {
-      const updatedTask = await TasksAPI.updateTask(taskId, updates)
+      const updatedTask = await tasksApi.updateTask(taskId, updates)
       dispatch({ type: 'UPDATE_TASK', payload: updatedTask })
       dispatch({ type: 'SET_ERROR', payload: null })
       return updatedTask
@@ -119,7 +134,7 @@ export const TaskProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const deleteTask = useCallback(async (taskId: string) => {
     dispatch({ type: 'SET_LOADING', payload: true })
     try {
-      await TasksAPI.deleteTask(taskId)
+      await tasksApi.deleteTask(taskId)
       dispatch({ type: 'DELETE_TASK', payload: taskId })
       dispatch({ type: 'SET_ERROR', payload: null })
     } catch (error) {
@@ -143,6 +158,7 @@ export const TaskProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       value={{
         ...state,
         fetchTasks,
+        getTaskById,
         createTask,
         updateTask,
         deleteTask,

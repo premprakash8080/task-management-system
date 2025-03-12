@@ -69,8 +69,8 @@ const NavItem = ({ icon, label, to, count, isCollapsed }: NavItemProps) => {
   const color = useColorModeValue('gray.700', 'whiteAlpha.900')
 
   return (
-    <Box 
-      as="li" 
+    <Box
+      as="li"
       className="css-0"
       listStyleType="none"
       role="group"
@@ -96,9 +96,9 @@ const NavItem = ({ icon, label, to, count, isCollapsed }: NavItemProps) => {
         transition="all 0.2s"
         position="relative"
       >
-        <Icon 
-          as={icon} 
-          boxSize={5} 
+        <Icon
+          as={icon}
+          boxSize={5}
           mr={isCollapsed ? 0 : 3}
           className="chakra-icon css-8nmnjd"
           color={isActive ? 'brand.500' : 'inherit'}
@@ -106,7 +106,7 @@ const NavItem = ({ icon, label, to, count, isCollapsed }: NavItemProps) => {
         />
         {!isCollapsed && (
           <>
-            <Text 
+            <Text
               fontSize="sm"
               className="chakra-text css-itvw0n"
               fontWeight={isActive ? "medium" : "normal"}
@@ -188,23 +188,23 @@ const ProjectItem = ({
       position="relative"
       onClick={handleProjectClick}
     >
-      <HStack 
-        w="full" 
-        spacing={isCollapsed ? 0 : 3} 
+      <HStack
+        w="full"
+        spacing={isCollapsed ? 0 : 3}
         justifyContent={isCollapsed ? "center" : "flex-start"}
       >
-        <Box 
-          w="2.5" 
-          h="2.5" 
-          bg={color} 
-          borderRadius="sm" 
+        <Box
+          w="2.5"
+          h="2.5"
+          bg={color}
+          borderRadius="sm"
           flexShrink={0}
           transition="all 0.2s"
         />
         {!isCollapsed && (
           <>
-            <Text 
-              fontSize="sm" 
+            <Text
+              fontSize="sm"
               flex="1"
               transition="all 0.2s"
               fontWeight={isActive ? "medium" : "normal"}
@@ -280,14 +280,14 @@ export default function Sidebar({
       console.error('Invalid project ID');
       return;
     }
-    
+
     // Find the project to verify it exists
     const project = projects.find(p => p.id === projectId);
     if (!project) {
       console.error('Project not found:', projectId);
       return;
     }
-    
+
     console.log('Navigating to project:', project);
     navigate(`/projects/${projectId}/tasks`);
   }
@@ -298,7 +298,7 @@ export default function Sidebar({
       console.warn('Invalid project data:', project);
       return null;
     }
-    
+
     return (
       <ProjectItem
         key={project.id}
@@ -371,8 +371,8 @@ export default function Sidebar({
           </HStack>
 
           {/* Main Navigation */}
-          <Box 
-            as="ul" 
+          <Box
+            as="ul"
             role="list"
             className="css-16akluc"
             mt={1}
@@ -428,8 +428,8 @@ export default function Sidebar({
               <Box px={2}>
                 <Accordion defaultIndex={[0]} allowMultiple>
                   <AccordionItem border="none">
-                    <AccordionButton 
-                      px={0.5} 
+                    <AccordionButton
+                      px={0.5}
                       py={2}
                       _hover={{ bg: 'transparent' }}
                     >
@@ -439,10 +439,10 @@ export default function Sidebar({
                       <AccordionIcon color="gray.500" />
                     </AccordionButton>
                     <AccordionPanel px={0} pb={2}>
-                      <VStack 
+                      <VStack
                         as="ul"
                         role="list"
-                        align="stretch" 
+                        align="stretch"
                         spacing={1}
                       >
                         {isLoadingProjects ? (
@@ -477,11 +477,11 @@ export default function Sidebar({
                       <AccordionIcon />
                     </AccordionButton>
                     <AccordionPanel px={0} pb={4}>
-                      <VStack 
+                      <VStack
                         as="ul"
                         role="list"
                         className="css-5xq7pa"
-                        align="stretch" 
+                        align="stretch"
                         spacing={1}
                       >
                         <NavItem label="Tasks I've changed" to="/my-changes" icon={AiOutlineSearch} isCollapsed={false} />
@@ -550,19 +550,19 @@ export default function Sidebar({
           <Box flexShrink={0}>
             <Divider my={2} />
             <VStack align="stretch" spacing={2} px={2.5} pb={3}>
-              <Text 
-                fontSize="sm" 
-                color="gray.600" 
-                cursor="pointer" 
+              <Text
+                fontSize="sm"
+                color="gray.600"
+                cursor="pointer"
                 _hover={{ color: 'gray.900' }}
                 transition="color 0.2s"
               >
                 Invite teammates
               </Text>
-              <Text 
-                fontSize="sm" 
-                color="gray.600" 
-                cursor="pointer" 
+              <Text
+                fontSize="sm"
+                color="gray.600"
+                cursor="pointer"
                 _hover={{ color: 'gray.900' }}
                 transition="color 0.2s"
               >
