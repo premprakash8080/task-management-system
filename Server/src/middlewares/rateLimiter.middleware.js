@@ -3,13 +3,21 @@ import { ApiError } from '../utils/ApiError.js';
 
 const createRateLimiter = (options = {}) => {
   const windowMs = options.windowMs || 15 * 60 * 1000; // 15 minutes by default
-  const max = options.max || 100; // Limit each IP to 100 requests per windowMs
+  const max = options.max || 10000; // Limit each IP to 100 requests per windowMs
 
   return async (req, res, next) => {
     try {
+      // Log current environment
+      console.log('Current NODE_ENV:', process.env.NODE_ENV);
+
+      // Skip rate limiting for development and test environments
+      if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+        console.log('Rate limiting bypassed for development/test environment');
+        return next();
+      }
+
       const key = `${req.ip}-${req.originalUrl}`;
       const now = new Date();
-      const windowStart = new Date(now.getTime() - windowMs);
 
       // Find or create rate limit document
       let rateLimit = await RateLimit.findOne({
@@ -32,6 +40,7 @@ const createRateLimiter = (options = {}) => {
 
       // Check if limit exceeded
       if (rateLimit.requests > max) {
+        console.log(`Rate limit exceeded: ${rateLimit.requests} requests (max: ${max})`);
         throw new ApiError(429, 'Too many requests from this IP, please try again later.');
       }
 
@@ -45,21 +54,30 @@ const createRateLimiter = (options = {}) => {
       if (error instanceof ApiError) {
         next(error);
       } else {
+        console.error('Rate limiter error:', error);
         next(new ApiError(500, 'Internal server error while checking rate limit'));
       }
     }
   };
 };
 
-// Different rate limiters for different routes
+// Different rate limiters for different routes with more lenient development limits
 const authLimiter = createRateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per 15 minutes for auth routes
+  windowMs: process.env.NODE_ENV === 'production' 
+    ? 15 * 60 * 1000  // 15 minutes in production
+    : 5 * 60 * 1000,  // 5 minutes in development/test
+  max: process.env.NODE_ENV === 'production' 
+    ? 5  // 5 requests per 15 minutes in production
+    : 500 // 500 requests per 5 minutes in development/test
 });
 
 const apiLimiter = createRateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per 15 minutes for API routes
+  windowMs: process.env.NODE_ENV === 'production'
+    ? 15 * 60 * 1000  // 15 minutes in production
+    : 5 * 60 * 1000,  // 5 minutes in development/test
+  max: process.env.NODE_ENV === 'production'
+    ? 100  // 100 requests per 15 minutes in production
+    : 5000 // 5000 requests per 5 minutes in development/test
 });
 
 export {

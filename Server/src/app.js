@@ -18,16 +18,25 @@ import { router as healthcheckRoutes } from './routes/healthcheck.routes.js';
 const app = express();
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+}));
 app.use(mongoSanitize());
 app.use(xss());
 app.use(compression());
 
-// CORS and parsing middleware
-app.use(cors({
-  origin: process.env.CORS_ORIGIN,
-  credentials: true
-}));
+// CORS configuration
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173', // Vite's default port
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600 // 10 minutes
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json({ limit: '16kb' }));
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
